@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Sqs4j>
+  <bindAddress>*</bindAddress>
+  <bindPort>1218</bindPort>
+  <backlog>200</backlog>
+  <soTimeout>60</soTimeout>
+  <defaultCharset>UTF-8</defaultCharset>
+  <dbPath></dbPath>
+  <syncinterval>5</syncinterval>
+  <adminUser>admin</adminUser>
+  <adminPass>123456</adminPass>
+  <jmxPort>1219</jmxPort>
+  <auth></auth>
+</Sqs4j>
