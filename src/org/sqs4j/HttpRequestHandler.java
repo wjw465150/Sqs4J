@@ -8,7 +8,6 @@ import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.List;
