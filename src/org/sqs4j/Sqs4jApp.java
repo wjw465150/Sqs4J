@@ -13,6 +13,8 @@ import javax.security.auth.Subject;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.rmi.RemoteException;
@@ -27,34 +29,30 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-
 /**
- * 基于HTTP协议的轻量级开源简单队列服务.
- * User: wstone
- * Date: 2010-7-30
- * Time: 11:44:52
+ * 基于HTTP协议的轻量级开源简单队列服务. User: wstone Date: 2010-7-30 Time: 11:44:52
  */
 public class Sqs4jApp implements Runnable {
-  static final String VERSION = "1.3.8";  //当前版本
-  static final String DB_CHARSET = "UTF-8";  //数据库字符集
-  static final long DEFAULT_MAXQUEUE = 1000000000;  //缺省队列最大数是10亿条
-  private final String CONF_NAME;  //配置文件
+  static final String VERSION = "1.3.8"; //当前版本
+  static final String DB_CHARSET = "UTF-8"; //数据库字符集
+  static final long DEFAULT_MAXQUEUE = 1000000000; //缺省队列最大数是10亿条
+  private final String CONF_NAME; //配置文件
 
   private org.slf4j.Logger _log = org.slf4j.LoggerFactory.getLogger(this.getClass());
-  Sqs4jConf _conf;  //配置文件
+  Sqs4jConf _conf; //配置文件
 
   private boolean _rmiCreated;
-  private Registry _rmiRegistry;  //RIM 注册表
-  private JMXConnectorServer _jmxCS;  //JMXConnectorServer
+  private Registry _rmiRegistry; //RIM 注册表
+  private JMXConnectorServer _jmxCS; //JMXConnectorServer
 
-  static Lock _lock = new ReentrantLock();  //HTTP请求并发锁
+  static Lock _lock = new ReentrantLock(); //HTTP请求并发锁
   private Environment _env;
-  Database _db;  //数据库
+  public Database _db; //数据库
 
   //同步磁盘的Scheduled
   ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor();
 
-  private Channel _channel;  //Socket通道
+  private Channel _channel; //Socket通道
 
   //初始化目录和Log4j
   static {
@@ -98,7 +96,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 构造函数
-   *
+   * 
    * @param args
    */
   public Sqs4jApp(String args[]) {
@@ -114,14 +112,14 @@ public class Sqs4jApp implements Runnable {
       System.exit(-1);
     }
 
-//    for (; ;) {
-//      try {
-//        java.util.concurrent.TimeUnit.SECONDS.sleep(10);
-//      } catch (InterruptedException ex) {
-//        Thread.currentThread().interrupt();
-//        System.exit(0);
-//      }
-//    }
+    //    for (; ;) {
+    //      try {
+    //        java.util.concurrent.TimeUnit.SECONDS.sleep(10);
+    //      } catch (InterruptedException ex) {
+    //        Thread.currentThread().interrupt();
+    //        System.exit(0);
+    //      }
+    //    }
 
   }
 
@@ -131,7 +129,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 从HTTP Header里找到字符集编码,没有发现返回null
-   *
+   * 
    * @param contentType
    * @return
    */
@@ -157,7 +155,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 从HTTP的URL的请求参数里找到字符集编码,没有发现返回null
-   *
+   * 
    * @param query
    * @return
    */
@@ -180,7 +178,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 把HTTP的URL的请求参数解析成Map
-   *
+   * 
    * @param query
    * @param charset
    * @return
@@ -207,7 +205,7 @@ public class Sqs4jApp implements Runnable {
     return map;
   }
 
-/* 读取队列写入点的值 */
+  /* 读取队列写入点的值 */
 
   long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
     DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "putpos").getBytes(DB_CHARSET));
@@ -221,7 +219,7 @@ public class Sqs4jApp implements Runnable {
     }
   }
 
-/* 读取队列读取点的值 */
+  /* 读取队列读取点的值 */
 
   long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
     DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "getpos").getBytes(DB_CHARSET));
@@ -235,7 +233,7 @@ public class Sqs4jApp implements Runnable {
     }
   }
 
-/* 读取用于设置的最大队列数 */
+  /* 读取用于设置的最大队列数 */
 
   long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
     DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "maxqueue").getBytes(DB_CHARSET));
@@ -251,11 +249,10 @@ public class Sqs4jApp implements Runnable {
     }
   }
 
-
   /**
    * 设置最大的队列数量，返回值为设置的队列数量。如果返回值为0，则表示设置取消（取消原因为：
    * 设置的最大的队列数量小于”当前队列写入位置点“和”当前队列读取位置点“，或者”当前队列写入位置点“小于”当前队列的读取位置点）
-   *
+   * 
    * @param httpsqs_input_name
    * @param httpsqs_input_num
    * @return
@@ -265,13 +262,14 @@ public class Sqs4jApp implements Runnable {
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
     /* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
-    if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value && queue_put_value >= queue_get_value) {
+    if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value
+        && queue_put_value >= queue_get_value) {
       DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "maxqueue").getBytes(DB_CHARSET));
       DatabaseEntry value = new DatabaseEntry(String.valueOf(httpsqs_input_num).getBytes(DB_CHARSET));
 
       OperationStatus status = _db.put(null, key, value);
       if (status == OperationStatus.SUCCESS) {
-        _db.sync();  //实时刷新到磁盘
+        _db.sync(); //实时刷新到磁盘
         _log.info(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
 
         return httpsqs_input_num;
@@ -285,7 +283,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 重置队列，true表示重置成功
-   *
+   * 
    * @param httpsqs_input_name
    * @return
    */
@@ -299,14 +297,14 @@ public class Sqs4jApp implements Runnable {
     key.setData(String.format("%s:%s", httpsqs_input_name, "maxqueue").getBytes(DB_CHARSET));
     _db.delete(null, key);
 
-    _db.sync();  //实时刷新到磁盘
+    _db.sync(); //实时刷新到磁盘
 
     return true;
   }
 
   /**
    * 查看单条队列内容
-   *
+   * 
    * @param httpsqs_input_name
    * @param pos
    * @return
@@ -325,7 +323,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 修改定时更新内存内容到磁盘的间隔时间，返回间隔时间（秒）
-   *
+   * 
    * @param httpsqs_input_num
    * @return
    */
@@ -349,7 +347,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 获取本次“入队列”操作的队列写入点
-   *
+   * 
    * @param httpsqs_input_name
    * @return
    */
@@ -361,11 +359,21 @@ public class Sqs4jApp implements Runnable {
     DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "putpos").getBytes(DB_CHARSET));
     /* 队列写入位置点加1 */
     queue_put_value = queue_put_value + 1;
-    if(queue_put_value > maxqueue_num && queue_get_value == 0) {  /* 如果队列写入ID+1之后追上队列读取ID，则说明队列已满，返回0，拒绝继续写入 */
+    if (queue_put_value > maxqueue_num && queue_get_value == 0) { /*
+                                                                   * 如果队列写入ID+1
+                                                                   * 之后追上队列读取ID
+                                                                   * ，则说明队列已满
+                                                                   * ，返回0，拒绝继续写入
+                                                                   */
       queue_put_value = 0;
-    } else if (queue_put_value == queue_get_value) { /* 如果队列写入ID+1之后追上队列读取ID，则说明队列已满，返回0，拒绝继续写入 */
+    } else if (queue_put_value == queue_get_value) { /*
+                                                      * 如果队列写入ID+1之后追上队列读取ID，则说明队列已满
+                                                      * ，返回0，拒绝继续写入
+                                                      */
       queue_put_value = 0;
-    } else if (queue_put_value > maxqueue_num) { /* 如果队列写入ID大于最大队列数量，则重置队列写入位置点的值为1 */
+    } else if (queue_put_value > maxqueue_num) { /*
+                                                  * 如果队列写入ID大于最大队列数量，则重置队列写入位置点的值为1
+                                                  */
       DatabaseEntry value = new DatabaseEntry("1".getBytes(DB_CHARSET));
       OperationStatus status = _db.put(null, key, value);
       if (status == OperationStatus.SUCCESS) {
@@ -386,7 +394,7 @@ public class Sqs4jApp implements Runnable {
 
   /**
    * 获取本次“出队列”操作的队列读取点，返回值为0时队列全部读取完成
-   *
+   * 
    * @param httpsqs_input_name
    * @return
    */
@@ -448,10 +456,10 @@ public class Sqs4jApp implements Runnable {
         _conf = new Sqs4jConf();
         _conf.store(CONF_NAME);
       }
-      if(_conf.dbPath == null || _conf.dbPath.length()==0) {
+      if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
         _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
       }
-      if(_conf.auth != null && _conf.auth.trim().length()==0) {
+      if (_conf.auth != null && _conf.auth.trim().length() == 0) {
         _conf.auth = null;
       }
 
@@ -477,19 +485,20 @@ public class Sqs4jApp implements Runnable {
             _rmiRegistry = LocateRegistry.getRegistry(_conf.jmxPort);
             _rmiRegistry.list();
             _rmiCreated = false;
-            _log.info("Detect RMI registry:"+_rmiRegistry.toString());
+            _log.info("Detect RMI registry:" + _rmiRegistry.toString());
           } catch (RemoteException ex) {
             _rmiRegistry = LocateRegistry.createRegistry(_conf.jmxPort);
             _rmiRegistry.list();
             _rmiCreated = true;
-            _log.info("Could not detect local RMI registry - creating new one:"+_rmiRegistry.toString());
+            _log.info("Could not detect local RMI registry - creating new one:" + _rmiRegistry.toString());
           }
         }
 
-        String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:" + _conf.jmxPort + "/jmxrmi";
-        _jmxCS = JMXConnectorServerFactory
-                .newJMXConnectorServer(new JMXServiceURL(serviceUrl) , env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
+        String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:" + _conf.jmxPort
+            + "/jmxrmi";
+        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(new JMXServiceURL(serviceUrl), env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
         _jmxCS.start();
+        registerMBean(new org.sqs4j.jmx.Sqs4J(this), " org.sqs4j:type=Sqs4J");
       }
 
       if (_env == null) {
@@ -497,10 +506,10 @@ public class Sqs4jApp implements Runnable {
         envConfig.setAllowCreate(true);
         envConfig.setLocking(false);
         envConfig.setTransactional(false);
-        envConfig.setCachePercent(30);  //很重要,不合适的值会降低速度
-        envConfig.setConfigParam(EnvironmentConfig.LOG_FILE_MAX,"104857600");  //单个log日志文件尺寸是100M
+        envConfig.setCachePercent(30); //很重要,不合适的值会降低速度
+        envConfig.setConfigParam(EnvironmentConfig.LOG_FILE_MAX, "104857600"); //单个log日志文件尺寸是100M
 
-        if(_conf.dbPath == null || _conf.dbPath.length()==0) {
+        if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
         _env = new Environment(new File(_conf.dbPath), envConfig);
@@ -509,7 +518,7 @@ public class Sqs4jApp implements Runnable {
       if (_db == null) {
         DatabaseConfig dbConfig = new DatabaseConfig();
         dbConfig.setAllowCreate(true);
-        dbConfig.setDeferredWrite(true);  //延迟写
+        dbConfig.setDeferredWrite(true); //延迟写
         dbConfig.setSortedDuplicates(false);
         dbConfig.setTransactional(false);
         _db = _env.openDatabase(null, "Sqs4j", dbConfig);
@@ -525,14 +534,10 @@ public class Sqs4jApp implements Runnable {
           addr = new InetSocketAddress(_conf.bindAddress, _conf.bindPort);
         }
 
-        ServerBootstrap _server = new ServerBootstrap(
-                new NioServerSocketChannelFactory(
-                        Executors.newCachedThreadPool(),
-                        Executors.newCachedThreadPool())
-        );
+        ServerBootstrap _server = new ServerBootstrap(new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool()));
         _server.setOption("tcpNoDelay", true);
         _server.setOption("reuseAddress", true);
-        _server.setOption("soTimeout", _conf.soTimeout*1000);
+        _server.setOption("soTimeout", _conf.soTimeout * 1000);
         _server.setOption("backlog", _conf.backlog);
 
         _server.setPipelineFactory(new HttpServerPipelineFactory(this));
@@ -626,6 +631,50 @@ public class Sqs4jApp implements Runnable {
     }
 
     return true;
+  }
+
+  /**
+   * Java 1.5 and above supports the ability to register the WrapperManager
+   * MBean internally.
+   */
+  private void registerMBean(Object mbean, String name) {
+    Class classManagementFactory;
+    Class classMBeanServer;
+    Class classObjectName;
+    try {
+      classManagementFactory = Class.forName("java.lang.management.ManagementFactory");
+      classMBeanServer = Class.forName("javax.management.MBeanServer");
+      classObjectName = Class.forName("javax.management.ObjectName");
+    } catch (ClassNotFoundException e) {
+      _log.error("Registering MBeans not supported by current JVM:" + name);
+      return;
+    }
+
+    try {
+      // This code uses reflection so it combiles on older JVMs.
+      // The original code is as follows:
+      // javax.management.MBeanServer mbs =
+      //     java.lang.management.ManagementFactory.getPlatformMBeanServer();
+      // javax.management.ObjectName oName = new javax.management.ObjectName( name );
+      // mbs.registerMBean( mbean, oName );
+
+      // The version of the above code using reflection follows.
+      Method methodGetPlatformMBeanServer = classManagementFactory.getMethod("getPlatformMBeanServer", (Class[]) null);
+      Constructor constructorObjectName = classObjectName.getConstructor(new Class[] { String.class });
+      Method methodRegisterMBean = classMBeanServer.getMethod("registerMBean", new Class[] { Object.class,
+          classObjectName });
+      Object mbs = methodGetPlatformMBeanServer.invoke((Object) null, (Object[]) null);
+      Object oName = constructorObjectName.newInstance(new Object[] { name });
+      methodRegisterMBean.invoke(mbs, new Object[] { mbean, oName });
+
+      _log.info("Registered MBean with Platform MBean Server:" + name);
+    } catch (Throwable t) {
+      if (t instanceof ClassNotFoundException) {
+        _log.error("Using MBean requires at least a JVM version 1.5.");
+      }
+      _log.error("Unable to register the " + name + " MBean.");
+      t.printStackTrace();
+    }
   }
 
 }
