@@ -161,7 +161,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
                 DatabaseEntry value = new DatabaseEntry(httpsqs_input_postbuffer.getBytes(Sqs4jApp.DB_CHARSET));
                 OperationStatus status = _app._db.put(null, key, value);
                 if (status == OperationStatus.SUCCESS) {
-                  response.setHeader("Pos", queue_name);
+                  response.setHeader("Pos", queue_put_value);
                   _buf.append("HTTPSQS_PUT_OK");
                 } else {
                   _buf.append("HTTPSQS_PUT_ERROR");
@@ -178,7 +178,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
                 DatabaseEntry value = new DatabaseEntry(httpsqs_input_data.getBytes(Sqs4jApp.DB_CHARSET));
                 OperationStatus status = _app._db.put(null, key, value);
                 if (status == OperationStatus.SUCCESS) {
-                  response.setHeader("Pos", queue_name);
+                  response.setHeader("Pos", queue_put_value);
                   _buf.append("HTTPSQS_PUT_OK");
                 } else {
                   _buf.append("HTTPSQS_PUT_ERROR");
@@ -204,7 +204,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
               DatabaseEntry value = new DatabaseEntry();
               OperationStatus status = _app._db.get(null, key, value, LockMode.DEFAULT);
               if (status == OperationStatus.SUCCESS && value.getSize() > 0) {
-                response.setHeader("Pos", queue_name);
+                response.setHeader("Pos", queue_get_value);
                 _buf.append(new String(value.getData(), Sqs4jApp.DB_CHARSET));
               } else {
                 _buf.append("HTTPSQS_GET_END");
