@@ -470,6 +470,7 @@ public class Sqs4jApp implements Runnable {
       try {
         _conf = Sqs4jConf.load(CONF_NAME);
       } catch (Exception ex) {
+        //ex.printStackTrace();
         _conf = new Sqs4jConf();
         _conf.store(CONF_NAME);
       }

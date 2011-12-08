@@ -6,7 +6,7 @@
   <soTimeout>60</soTimeout>
   <defaultCharset>UTF-8</defaultCharset>
   <dbPath></dbPath>
-  <syncinterval>5</syncinterval>
+  <syncinterval>1</syncinterval>
   <adminUser>admin</adminUser>
   <adminPass>123456</adminPass>
   <jmxPort>1219</jmxPort>
