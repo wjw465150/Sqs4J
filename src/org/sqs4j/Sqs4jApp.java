@@ -522,7 +522,7 @@ public class Sqs4jApp implements Runnable {
       if (_env == null) {
         EnvironmentConfig envConfig = new EnvironmentConfig();
         envConfig.setAllowCreate(true);
-        envConfig.setLocking(false);
+        envConfig.setLocking(true);
         envConfig.setTransactional(false);
         envConfig.setCachePercent(30); //很重要,不合适的值会降低速度
         envConfig.setConfigParam(EnvironmentConfig.LOG_FILE_MAX, "104857600"); //单个log日志文件尺寸是100M
