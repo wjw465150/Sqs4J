@@ -1,5 +1,7 @@
 package org.sqs4j.jmx;
 
+import java.io.IOException;
+
 import org.sqs4j.Sqs4jApp;
 
 public class Sqs4J implements Sqs4JMBean{
@@ -11,7 +13,11 @@ public class Sqs4J implements Sqs4JMBean{
   
   @Override
   public boolean flush() {
-    _app._db.sync();
+    try {
+      _app._db.sync();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
     return true;
   }
 

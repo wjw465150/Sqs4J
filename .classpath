@@ -7,7 +7,7 @@
 	<classpathentry kind="lib" path="lib/slf4j-api.jar"/>
 	<classpathentry kind="lib" path="lib/slf4j-log4j.jar"/>
 	<classpathentry kind="lib" path="bin/wrapper.jar"/>
-	<classpathentry kind="lib" path="lib/BerkeleyDB-je-5.0.34.jar"/>
 	<classpathentry kind="lib" path="lib/netty-3.3.1.Final.jar"/>
+	<classpathentry kind="lib" path="lib/JDBM-3.0.jar"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>
