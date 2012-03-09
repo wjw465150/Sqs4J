@@ -168,7 +168,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             if (_request.getMethod().getName().equalsIgnoreCase("POST")) {
               long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
               if (now_putpos > 0) {
-                Map<String, String> map = _app._db.getHashMap(httpsqs_input_name);
+                Map<String, String> map = _app.getHashMap(httpsqs_input_name);
 
                 String key = String.valueOf(now_putpos);
                 String value = URLDecoder.decode(_request.getContent().toString(_charsetObj), charset);
@@ -181,7 +181,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             } else if (httpsqs_input_data != null) { //如果POST正文无内容，则取URL中data参数的值
               long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
               if (now_putpos > 0) {
-                Map<String, String> map = _app._db.getHashMap(httpsqs_input_name);
+                Map<String, String> map = _app.getHashMap(httpsqs_input_name);
 
                 String key = String.valueOf(now_putpos);
                 String value = httpsqs_input_data;
@@ -203,7 +203,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             if (now_getpos == 0) {
               _buf.append("HTTPSQS_GET_END");
             } else {
-              Map<String, String> map = _app._db.getHashMap(httpsqs_input_name);
+              Map<String, String> map = _app.getHashMap(httpsqs_input_name);
 
               String key = String.valueOf(now_getpos);
               String value = map.get(key);
@@ -310,6 +310,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
       } else {
         _buf.append(String.format("%s", "HTTPSQS_ERROR:队列名错误!"));
       }
+    } catch (Throwable ex) {
+      ex.printStackTrace();
     } finally {
       Sqs4jApp._lock.unlock();
     }

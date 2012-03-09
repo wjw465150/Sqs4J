@@ -97,13 +97,18 @@ public class Sqs4jApp implements Runnable {
   @Override
   //定时将内存中的内容写入磁盘
   public void run() {
-    try {
-      _db.sync();
-    } catch (Throwable thex) {
-      //
-    }
+    this.flush();
   }
 
+  void flush() {
+    try {
+      _db.commit();
+      _db.sync();
+    } catch (Throwable thex) {
+      thex.printStackTrace();
+    }
+  }
+  
   /**
    * 构造函数
    * 
@@ -215,12 +220,21 @@ public class Sqs4jApp implements Runnable {
     return map;
   }
 
+  Map<String, String> getHashMap(String httpsqs_input_name) {
+    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    if (map == null) {
+      map = _db.createHashMap(httpsqs_input_name);
+    }
+
+    return map;
+  }
+
   /* 读取队列写入点的值 */
 
   long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    Map<String, String> map = getHashMap(httpsqs_input_name);
 
-    String key = String.format("%s:%s", httpsqs_input_name, "putpos");
+    String key = "putpos";
     String value = map.get(key);
     if (value == null) {
       return 0;
@@ -232,9 +246,9 @@ public class Sqs4jApp implements Runnable {
   /* 读取队列读取点的值 */
 
   long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    Map<String, String> map = getHashMap(httpsqs_input_name);
 
-    String key = String.format("%s:%s", httpsqs_input_name, "getpos");
+    String key = "getpos";
     String value = map.get(key);
     if (value == null) {
       return 0;
@@ -246,9 +260,9 @@ public class Sqs4jApp implements Runnable {
   /* 读取用于设置的最大队列数 */
 
   long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    Map<String, String> map = getHashMap(httpsqs_input_name);
 
-    String key = String.format("%s:%s", httpsqs_input_name, "maxqueue");
+    String key = "maxqueue";
     String value = map.get(key);
     if (value == null) {
       return DEFAULT_MAXQUEUE;
@@ -272,15 +286,11 @@ public class Sqs4jApp implements Runnable {
     /* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
     if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value
         && queue_put_value >= queue_get_value) {
-      Map<String, Long> map = _db.getHashMap(httpsqs_input_name);
-      String key = String.format("%s:%s", httpsqs_input_name, "maxqueue");
-      map.put(key, httpsqs_input_num);
+      Map<String, String> map = getHashMap(httpsqs_input_name);
+      String key = "maxqueue";
+      map.put(key, String.valueOf(httpsqs_input_num));
 
-      try {
-        _db.sync(); //实时刷新到磁盘
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+      this.flush(); //实时刷新到磁盘
       _log.info(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
       return httpsqs_input_num;
     } else {
@@ -295,21 +305,17 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   boolean httpsqs_reset(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
-    String key = String.format("%s:%s", httpsqs_input_name, "putpos");
+    Map<String, String> map = getHashMap(httpsqs_input_name);
+    String key = "putpos";
     map.remove(key);
 
-    key = String.format("%s:%s", httpsqs_input_name, "getpos");
+    key = "getpos";
     map.remove(key);
 
-    key = String.format("%s:%s", httpsqs_input_name, "maxqueue");
+    key = "maxqueue";
     map.remove(key);
 
-    try {
-      _db.sync(); //实时刷新到磁盘
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+    this.flush(); //实时刷新到磁盘
 
     return true;
   }
@@ -322,9 +328,9 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   String httpsqs_view(String httpsqs_input_name, long pos) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    Map<String, String> map = getHashMap(httpsqs_input_name);
 
-    String key = String.format("%s:%d", httpsqs_input_name, pos);
+    String key = String.valueOf(pos);
     String value = map.get(key);
 
     return value;
@@ -361,13 +367,13 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_now_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    Map<String, String> map = getHashMap(httpsqs_input_name);
 
     long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    String key = String.format("%s:%s", httpsqs_input_name, "putpos");
+    String key = "putpos";
     /* 队列写入位置点加1 */
     queue_put_value = queue_put_value + 1;
     if (queue_put_value > maxqueue_num && queue_get_value == 0) { /*
@@ -402,13 +408,13 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_now_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
+    Map<String, String> map = getHashMap(httpsqs_input_name);
 
     long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    String key = String.format("%s:%s", httpsqs_input_name, "getpos");
+    String key = "getpos";
     /* 如果queue_get_value的值不存在，重置为1 */
     if (queue_get_value == 0 && queue_put_value > 0) {
       queue_get_value = 1;
@@ -499,8 +505,14 @@ public class Sqs4jApp implements Runnable {
         if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
-        int cacheMemory = (int) (Runtime.getRuntime().totalMemory() * 0.7);
-        _db = new DBMaker(_conf.dbPath + "/sqs4j.db").closeOnExit().disableAutoDefrag().disableTransactions().setMRUCacheSize(cacheMemory).build();
+        //int cacheSize = 100000;
+        //System.out.println("MRUCacheSize:" + cacheSize);
+        _db = new DBMaker(_conf.dbPath + "/sqs4j.db")
+            .closeOnExit()
+            .disableAutoDefrag()
+            .disableTransactions()
+            //.setMRUCacheSize(cacheSize)  @wjw_note: 搞不懂,设置缓存还会降低性能.
+            .build();
       }
 
       _scheduleSync.scheduleWithFixedDelay(this, 1, _conf.syncinterval, TimeUnit.SECONDS);
@@ -524,6 +536,7 @@ public class Sqs4jApp implements Runnable {
 
         _log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
       }
+      System.out.println("Started Sqs4J!");
 
       return true;
     } catch (Throwable ex) {
@@ -550,11 +563,7 @@ public class Sqs4jApp implements Runnable {
     }
 
     if (_db != null) {
-      try {
-        _db.sync();
-      } catch (Throwable ex) {
-        _log.error(ex.getMessage(), ex);
-      }
+      this.flush(); //实时刷新到磁盘
 
       try {
         _db.close();
@@ -585,6 +594,7 @@ public class Sqs4jApp implements Runnable {
       }
     }
 
+    System.out.println("Stoped Sqs4J!");
     return true;
   }
 
