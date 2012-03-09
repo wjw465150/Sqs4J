@@ -100,7 +100,7 @@ public class Sqs4jApp implements Runnable {
     this.flush();
   }
 
-  void flush() {
+  public void flush() {
     try {
       _db.commit();
       _db.sync();

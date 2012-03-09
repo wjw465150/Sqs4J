@@ -13,11 +13,7 @@ public class Sqs4J implements Sqs4JMBean{
   
   @Override
   public boolean flush() {
-    try {
-      _app._db.sync();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+    _app.flush();
     return true;
   }
 
