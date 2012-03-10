@@ -128,14 +128,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     }
 
     //接收GET表单参数
-    String httpsqs_input_auth = requestParameters.get("auth") != null ? requestParameters.get("auth").get(0) : null; /*
-                                                                                                                      * get
-                                                                                                                      * ,
-                                                                                                                      * put
-                                                                                                                      * ,
-                                                                                                                      * view的验证密码
-                                                                                                                      */
-    String httpsqs_input_name = requestParameters.get("name") != null ? requestParameters.get("name").get(0) : null; /* 队列名称 */
+    String httpsqs_input_auth = requestParameters.get("auth") != null ? requestParameters.get("auth").get(0) : null; // get,put,view的验证密码
+    String httpsqs_input_name = requestParameters.get("name") != null ? requestParameters.get("name").get(0) : null; // 队列名称
     String httpsqs_input_opt = requestParameters.get("opt") != null ? requestParameters.get("opt").get(0) : null; //操作类别
     String httpsqs_input_data = requestParameters.get("data") != null ? requestParameters.get("data").get(0) : null; //队列数据
     String httpsqs_input_pos_tmp = requestParameters.get("pos") != null ? requestParameters.get("pos").get(0) : null; //队列位置点
@@ -223,9 +217,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           } else {
             String httpsqs_output_value = _app.httpsqs_view(httpsqs_input_name, httpsqs_input_pos);
             if (httpsqs_output_value == null) {
-              _buf.append(String.format("%s", "HTTPSQS_ERROR_NOFOUND"));
+              _buf.append("HTTPSQS_ERROR_NOFOUND");
             } else {
-              _buf.append(String.format("%s", httpsqs_output_value));
+              _buf.append(httpsqs_output_value);
             }
           }
           /* 查看队列状态（普通浏览方式） */
@@ -301,7 +295,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           /* 手动刷新内存内容到磁盘 */
         } else if (httpsqs_input_opt.equals("flush")) {
           if (checkUser(response)) {
-            _app._db.sync();
+            _app.flush();
             _buf.append(String.format("%s", "HTTPSQS_FLUSH_OK"));
           }
         } else { /* 命令错误 */

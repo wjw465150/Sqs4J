@@ -100,15 +100,6 @@ public class Sqs4jApp implements Runnable {
     this.flush();
   }
 
-  public void flush() {
-    try {
-      _db.commit();
-      _db.sync();
-    } catch (Throwable thex) {
-      thex.printStackTrace();
-    }
-  }
-  
   /**
    * 构造函数
    * 
@@ -220,10 +211,22 @@ public class Sqs4jApp implements Runnable {
     return map;
   }
 
+  public void flush() {
+    try {
+      _db.commit();
+    } catch (Throwable thex) {
+      thex.printStackTrace();
+    }
+  }
+
   Map<String, String> getHashMap(String httpsqs_input_name) {
     Map<String, String> map = _db.getHashMap(httpsqs_input_name);
     if (map == null) {
       map = _db.createHashMap(httpsqs_input_name);
+
+      map.put("putpos", "0");
+      map.put("getpos", "0");
+      map.put("maxqueue", String.valueOf(DEFAULT_MAXQUEUE));
     }
 
     return map;
@@ -236,11 +239,7 @@ public class Sqs4jApp implements Runnable {
 
     String key = "putpos";
     String value = map.get(key);
-    if (value == null) {
-      return 0;
-    } else {
-      return Long.parseLong(value);
-    }
+    return Long.parseLong(value);
   }
 
   /* 读取队列读取点的值 */
@@ -250,11 +249,7 @@ public class Sqs4jApp implements Runnable {
 
     String key = "getpos";
     String value = map.get(key);
-    if (value == null) {
-      return 0;
-    } else {
-      return Long.parseLong(value);
-    }
+    return Long.parseLong(value);
   }
 
   /* 读取用于设置的最大队列数 */
@@ -264,11 +259,7 @@ public class Sqs4jApp implements Runnable {
 
     String key = "maxqueue";
     String value = map.get(key);
-    if (value == null) {
-      return DEFAULT_MAXQUEUE;
-    } else {
-      return Long.parseLong(value);
-    }
+    return Long.parseLong(value);
   }
 
   /**
@@ -287,8 +278,7 @@ public class Sqs4jApp implements Runnable {
     if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value
         && queue_put_value >= queue_get_value) {
       Map<String, String> map = getHashMap(httpsqs_input_name);
-      String key = "maxqueue";
-      map.put(key, String.valueOf(httpsqs_input_num));
+      map.put("maxqueue", String.valueOf(httpsqs_input_num));
 
       this.flush(); //实时刷新到磁盘
       _log.info(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
@@ -306,14 +296,10 @@ public class Sqs4jApp implements Runnable {
    */
   boolean httpsqs_reset(String httpsqs_input_name) throws UnsupportedEncodingException {
     Map<String, String> map = getHashMap(httpsqs_input_name);
-    String key = "putpos";
-    map.remove(key);
 
-    key = "getpos";
-    map.remove(key);
-
-    key = "maxqueue";
-    map.remove(key);
+    map.put("putpos", "0");
+    map.put("getpos", "0");
+    map.put("maxqueue", String.valueOf(DEFAULT_MAXQUEUE));
 
     this.flush(); //实时刷新到磁盘
 
@@ -330,10 +316,7 @@ public class Sqs4jApp implements Runnable {
   String httpsqs_view(String httpsqs_input_name, long pos) throws UnsupportedEncodingException {
     Map<String, String> map = getHashMap(httpsqs_input_name);
 
-    String key = String.valueOf(pos);
-    String value = map.get(key);
-
-    return value;
+    return map.get(String.valueOf(pos));
   }
 
   /**
@@ -361,7 +344,7 @@ public class Sqs4jApp implements Runnable {
   }
 
   /**
-   * 获取本次“入队列”操作的队列写入点
+   * 获取本次“入队列”操作的队列写入点，返回值为0时队列已满拒绝继续写入
    * 
    * @param httpsqs_input_name
    * @return
@@ -391,8 +374,7 @@ public class Sqs4jApp implements Runnable {
     } else if (queue_put_value > maxqueue_num) { /*
                                                   * 如果队列写入ID大于最大队列数量，则重置队列写入位置点的值为1
                                                   */
-      String value = "1";
-      map.put(key, value);
+      map.put(key, "1");
     } else { /* 队列写入位置点加1后的值，回写入数据库 */
       String value = String.valueOf(queue_put_value);
       map.put(key, value);
@@ -418,7 +400,7 @@ public class Sqs4jApp implements Runnable {
     /* 如果queue_get_value的值不存在，重置为1 */
     if (queue_get_value == 0 && queue_put_value > 0) {
       queue_get_value = 1;
-      String value = "1";
+      String value = String.valueOf(queue_get_value);
       map.put(key, value);
 
       /* 如果队列的读取值（出队列）小于队列的写入值（入队列） */
@@ -436,7 +418,7 @@ public class Sqs4jApp implements Runnable {
       /* 如果队列的读取值（出队列）大于队列的写入值（入队列），并且队列的读取值（出队列）等于最大队列数量 */
     } else if (queue_get_value > queue_put_value && queue_get_value == maxqueue_num) {
       queue_get_value = 1;
-      String value = "1";
+      String value = String.valueOf(queue_get_value);
       map.put(key, value);
 
       /* 队列的读取值（出队列）等于队列的写入值（入队列），即队列中的数据已全部读出 */
@@ -505,14 +487,15 @@ public class Sqs4jApp implements Runnable {
         if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
+
+        DBMaker maker = new DBMaker(_conf.dbPath + "/sqs4j.db");
         //int cacheSize = 100000;
         //System.out.println("MRUCacheSize:" + cacheSize);
-        _db = new DBMaker(_conf.dbPath + "/sqs4j.db")
-            .closeOnExit()
-            .disableAutoDefrag()
-            .disableTransactions()
-            //.setMRUCacheSize(cacheSize)  @wjw_note: 搞不懂,设置缓存还会降低性能.
-            .build();
+        //maker.setMRUCacheSize(cacheSize);  @wjw_note: 搞不懂,设置缓存还会降低性能.
+        maker.disableAutoDefrag();
+        maker.disableTransactions();
+
+        _db = maker.build();
       }
 
       _scheduleSync.scheduleWithFixedDelay(this, 1, _conf.syncinterval, TimeUnit.SECONDS);
