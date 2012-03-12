@@ -212,10 +212,13 @@ public class Sqs4jApp implements Runnable {
   }
 
   public void flush() {
+    _lock.lock();
     try {
-      _db.commit();
+      _db.sync();
     } catch (Throwable thex) {
       thex.printStackTrace();
+    } finally {
+      _lock.unlock();
     }
   }
 
