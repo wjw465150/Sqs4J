@@ -492,7 +492,7 @@ public class Sqs4jApp implements Runnable {
         //int cacheSize = 100000;
         //System.out.println("MRUCacheSize:" + cacheSize);
         //maker.setMRUCacheSize(cacheSize);  @wjw_note: 搞不懂,设置缓存还会降低性能.
-        maker.disableAutoDefrag();
+        //maker.disableAutoDefrag();
         maker.disableTransactions();
         maker.useRandomAccessFile();
 
