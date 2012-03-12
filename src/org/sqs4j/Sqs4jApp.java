@@ -212,13 +212,10 @@ public class Sqs4jApp implements Runnable {
   }
 
   public void flush() {
-    _lock.lock();
     try {
       _db.sync();
     } catch (Throwable thex) {
       thex.printStackTrace();
-    } finally {
-      _lock.unlock();
     }
   }
 
@@ -497,6 +494,7 @@ public class Sqs4jApp implements Runnable {
         //maker.setMRUCacheSize(cacheSize);  @wjw_note: 搞不懂,设置缓存还会降低性能.
         maker.disableAutoDefrag();
         maker.disableTransactions();
+        maker.useRandomAccessFile();
 
         _db = maker.build();
       }
