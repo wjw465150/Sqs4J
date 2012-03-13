@@ -108,24 +108,15 @@ public class Sqs4jApp implements Runnable {
   public Sqs4jApp(String args[]) {
     java.lang.Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       public void run() {
-        doStop2();
+        doStop();
       }
     }));
 
     CONF_NAME = System.getProperty("user.dir", ".") + "/conf/Sqs4jConf.xml";
 
-    if (!this.doStart2()) {
+    if (!this.doStart()) {
       System.exit(-1);
     }
-
-    //    for (; ;) {
-    //      try {
-    //        java.util.concurrent.TimeUnit.SECONDS.sleep(10);
-    //      } catch (InterruptedException ex) {
-    //        Thread.currentThread().interrupt();
-    //        System.exit(0);
-    //      }
-    //    }
 
   }
 
@@ -429,7 +420,7 @@ public class Sqs4jApp implements Runnable {
     return queue_get_value;
   }
 
-  public boolean doStart2() {
+  public boolean doStart() {
     try {
       try {
         _conf = Sqs4jConf.load(CONF_NAME);
@@ -489,12 +480,10 @@ public class Sqs4jApp implements Runnable {
         }
 
         DBMaker maker = new DBMaker(_conf.dbPath + "/sqs4j.db");
-        //int cacheSize = 100000;
-        //System.out.println("MRUCacheSize:" + cacheSize);
-        //maker.setMRUCacheSize(cacheSize);  @wjw_note: 搞不懂,设置缓存还会降低性能.
-        //maker.disableAutoDefrag();
         maker.disableTransactions();
+        maker.disableAutoDefrag();
         maker.useRandomAccessFile();
+        //maker.disableCache();
 
         _db = maker.build();
       }
@@ -529,7 +518,7 @@ public class Sqs4jApp implements Runnable {
     }
   }
 
-  public boolean doStop2() {
+  public boolean doStop() {
     _scheduleSync.shutdown();
 
     if (_channel != null) {
