@@ -204,7 +204,7 @@ public class Sqs4jApp implements Runnable {
 
   public void flush() {
     try {
-      _db.sync();
+      _db.commit();
     } catch (Throwable thex) {
       thex.printStackTrace();
     }
@@ -480,7 +480,6 @@ public class Sqs4jApp implements Runnable {
         }
 
         DBMaker maker = new DBMaker(_conf.dbPath + "/sqs4j.db");
-        maker.disableTransactions();
         maker.disableAutoDefrag();
         maker.useRandomAccessFile();
 
