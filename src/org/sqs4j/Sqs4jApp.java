@@ -483,7 +483,6 @@ public class Sqs4jApp implements Runnable {
         maker.disableTransactions();
         maker.disableAutoDefrag();
         maker.useRandomAccessFile();
-        //maker.disableCache();
 
         _db = maker.build();
       }
