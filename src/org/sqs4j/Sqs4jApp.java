@@ -144,7 +144,7 @@ public class Sqs4jApp implements Runnable {
       encoding = encoding.substring(0, end);
     }
     encoding = encoding.trim();
-    if ((encoding.length() > 2) && (encoding.startsWith("\"")) && (encoding.endsWith("\""))) {
+    if ((encoding.length() > 2) && (encoding.charAt(0) == '"') && (encoding.endsWith("\""))) {
       encoding = encoding.substring(1, encoding.length() - 1);
     }
     return (encoding.trim());
@@ -600,7 +600,7 @@ public class Sqs4jApp implements Runnable {
       Constructor constructorObjectName = classObjectName.getConstructor(new Class[] { String.class });
       Method methodRegisterMBean = classMBeanServer.getMethod("registerMBean", new Class[] { Object.class,
           classObjectName });
-      Object mbs = methodGetPlatformMBeanServer.invoke((Object) null, (Object[]) null);
+      Object mbs = methodGetPlatformMBeanServer.invoke(null, (Object[]) null);
       Object oName = constructorObjectName.newInstance(new Object[] { name });
       methodRegisterMBean.invoke(mbs, new Object[] { mbean, oName });
 
