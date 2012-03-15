@@ -162,11 +162,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             if (_request.getMethod().getName().equalsIgnoreCase("POST")) {
               long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
               if (now_putpos > 0) {
-                Map<String, String> map = _app.getHashMap(httpsqs_input_name);
-
-                String key = String.valueOf(now_putpos);
+                String key = httpsqs_input_name + ":" + now_putpos;
                 String value = URLDecoder.decode(_request.getContent().toString(_charsetObj), charset);
-                map.put(key, value);
+                _app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
                 response.setHeader("Pos", now_putpos);
                 _buf.append("HTTPSQS_PUT_OK");
               } else {
@@ -175,11 +173,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             } else if (httpsqs_input_data != null) { //如果POST正文无内容，则取URL中data参数的值
               long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
               if (now_putpos > 0) {
-                Map<String, String> map = _app.getHashMap(httpsqs_input_name);
-
-                String key = String.valueOf(now_putpos);
+                String key = httpsqs_input_name + ":" + now_putpos;
                 String value = httpsqs_input_data;
-                map.put(key, value);
+                _app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
                 response.setHeader("Pos", now_putpos);
                 _buf.append("HTTPSQS_PUT_OK");
               } else {
@@ -197,13 +193,11 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             if (now_getpos == 0) {
               _buf.append("HTTPSQS_GET_END");
             } else {
-              Map<String, String> map = _app.getHashMap(httpsqs_input_name);
-
-              String key = String.valueOf(now_getpos);
-              String value = map.get(key);
+              String key = httpsqs_input_name + ":" + now_getpos;
+              byte[] value = _app._db.get(key.getBytes(Sqs4jApp.DB_CHARSET));
               if (value != null) {
                 response.setHeader("Pos", now_getpos);
-                _buf.append(value);
+                _buf.append(new String(value, Sqs4jApp.DB_CHARSET));
               } else {
                 _buf.append("HTTPSQS_GET_END");
               }

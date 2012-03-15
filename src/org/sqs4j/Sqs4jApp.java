@@ -30,11 +30,13 @@ import javax.management.remote.JMXPrincipal;
 import javax.management.remote.JMXServiceURL;
 import javax.security.auth.Subject;
 
-import net.kotek.jdbm.DB;
-import net.kotek.jdbm.DBMaker;
-
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
+import org.iq80.leveldb.CompressionType;
+import org.iq80.leveldb.DB;
+import org.iq80.leveldb.Options;
+import org.iq80.leveldb.impl.DbImpl;
+import org.iq80.leveldb.impl.Iq80DBFactory;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -204,53 +206,46 @@ public class Sqs4jApp implements Runnable {
 
   public void flush() {
     try {
-      _db.commit();
+      //((DbImpl) _db).flushMemTable();
     } catch (Throwable thex) {
       thex.printStackTrace();
     }
   }
 
-  Map<String, String> getHashMap(String httpsqs_input_name) {
-    Map<String, String> map = _db.getHashMap(httpsqs_input_name);
-    if (map == null) {
-      map = _db.createHashMap(httpsqs_input_name);
-
-      map.put("putpos", "0");
-      map.put("getpos", "0");
-      map.put("maxqueue", String.valueOf(DEFAULT_MAXQUEUE));
-    }
-
-    return map;
-  }
-
   /* 读取队列写入点的值 */
 
   long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
-    String key = "putpos";
-    String value = map.get(key);
-    return Long.parseLong(value);
+    String key = httpsqs_input_name + ":putpos";
+    byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (value == null) {
+      return 0;
+    } else {
+      return Long.parseLong(new String(value, DB_CHARSET));
+    }
   }
 
   /* 读取队列读取点的值 */
 
   long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
-    String key = "getpos";
-    String value = map.get(key);
-    return Long.parseLong(value);
+    String key = httpsqs_input_name + ":getpos";
+    byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (value == null) {
+      return 0;
+    } else {
+      return Long.parseLong(new String(value, DB_CHARSET));
+    }
   }
 
   /* 读取用于设置的最大队列数 */
 
   long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
-    String key = "maxqueue";
-    String value = map.get(key);
-    return Long.parseLong(value);
+    String key = httpsqs_input_name + ":maxqueue";
+    byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (value == null) {
+      return DEFAULT_MAXQUEUE;
+    } else {
+      return Long.parseLong(new String(value, DB_CHARSET));
+    }
   }
 
   /**
@@ -268,8 +263,8 @@ public class Sqs4jApp implements Runnable {
     /* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
     if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value
         && queue_put_value >= queue_get_value) {
-      Map<String, String> map = getHashMap(httpsqs_input_name);
-      map.put("maxqueue", String.valueOf(httpsqs_input_num));
+      String key = httpsqs_input_name + ":maxqueue";
+      _db.put(key.getBytes(DB_CHARSET), String.valueOf(httpsqs_input_num).getBytes(DB_CHARSET));
 
       this.flush(); //实时刷新到磁盘
       _log.info(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
@@ -286,11 +281,9 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   boolean httpsqs_reset(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
-    map.put("putpos", "0");
-    map.put("getpos", "0");
-    map.put("maxqueue", String.valueOf(DEFAULT_MAXQUEUE));
+    _db.put((httpsqs_input_name + ":putpos").getBytes(DB_CHARSET), "0".getBytes(DB_CHARSET));
+    _db.put((httpsqs_input_name + ":getpos").getBytes(DB_CHARSET), "0".getBytes(DB_CHARSET));
+    _db.put((httpsqs_input_name + ":maxqueue").getBytes(DB_CHARSET), String.valueOf(DEFAULT_MAXQUEUE).getBytes(DB_CHARSET));
 
     this.flush(); //实时刷新到磁盘
 
@@ -305,9 +298,13 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   String httpsqs_view(String httpsqs_input_name, long pos) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
-    return map.get(String.valueOf(pos));
+    String key = httpsqs_input_name + ":" + pos;
+    byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (value == null) {
+      return null;
+    } else {
+      return new String(value, DB_CHARSET);
+    }
   }
 
   /**
@@ -341,13 +338,11 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_now_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
     long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    String key = "putpos";
+    String key = httpsqs_input_name + ":putpos";
     /* 队列写入位置点加1 */
     queue_put_value = queue_put_value + 1;
     if (queue_put_value > maxqueue_num && queue_get_value == 0) { /*
@@ -365,10 +360,10 @@ public class Sqs4jApp implements Runnable {
     } else if (queue_put_value > maxqueue_num) { /*
                                                   * 如果队列写入ID大于最大队列数量，则重置队列写入位置点的值为1
                                                   */
-      map.put(key, "1");
+      _db.put(key.getBytes(DB_CHARSET), "1".getBytes(DB_CHARSET));
     } else { /* 队列写入位置点加1后的值，回写入数据库 */
       String value = String.valueOf(queue_put_value);
-      map.put(key, value);
+      _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
     }
 
     return queue_put_value;
@@ -381,36 +376,34 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_now_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    Map<String, String> map = getHashMap(httpsqs_input_name);
-
     long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    String key = "getpos";
+    String key = httpsqs_input_name + ":getpos";
     /* 如果queue_get_value的值不存在，重置为1 */
     if (queue_get_value == 0 && queue_put_value > 0) {
       queue_get_value = 1;
       String value = String.valueOf(queue_get_value);
-      map.put(key, value);
+      _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 如果队列的读取值（出队列）小于队列的写入值（入队列） */
     } else if (queue_get_value < queue_put_value) {
       queue_get_value = queue_get_value + 1;
       String value = String.valueOf(queue_get_value);
-      map.put(key, value);
+      _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 如果队列的读取值（出队列）大于队列的写入值（入队列），并且队列的读取值（出队列）小于最大队列数量 */
     } else if (queue_get_value > queue_put_value && queue_get_value < maxqueue_num) {
       queue_get_value = queue_get_value + 1;
       String value = String.valueOf(queue_get_value);
-      map.put(key, value);
+      _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 如果队列的读取值（出队列）大于队列的写入值（入队列），并且队列的读取值（出队列）等于最大队列数量 */
     } else if (queue_get_value > queue_put_value && queue_get_value == maxqueue_num) {
       queue_get_value = 1;
       String value = String.valueOf(queue_get_value);
-      map.put(key, value);
+      _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 队列的读取值（出队列）等于队列的写入值（入队列），即队列中的数据已全部读出 */
     } else {
@@ -479,11 +472,10 @@ public class Sqs4jApp implements Runnable {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
 
-        DBMaker maker = new DBMaker(_conf.dbPath + "/sqs4j.db");
-        maker.disableAutoDefrag();
-        maker.useRandomAccessFile();
-
-        _db = maker.build();
+        Options options = new Options().createIfMissing(true);
+        options.writeBufferSize(128 * 1048576);
+        options.cacheSize(16 * 1048576);
+        _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
       _scheduleSync.scheduleWithFixedDelay(this, 1, _conf.syncinterval, TimeUnit.SECONDS);
