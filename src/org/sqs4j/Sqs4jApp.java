@@ -554,6 +554,7 @@ public class Sqs4jApp implements Runnable {
         _log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
       }
 
+      System.out.println("Started Sqs4J!");
       return true;
     } catch (Throwable ex) {
       _log.error(ex.getMessage(), ex);
@@ -638,6 +639,7 @@ public class Sqs4jApp implements Runnable {
       }
     }
 
+    System.out.println("Stoped Sqs4J!");
     return true;
   }
 
