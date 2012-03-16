@@ -477,7 +477,7 @@ public class Sqs4jApp implements Runnable {
          * LevelDB的sst文件大小默认是2M起，如果想入库时把这个搞大，只需要把options.write_buffer_size搞大，
          * 比如options.write_buffer_size = 100000000。这样一上来sst就是32M起。
          */
-        options.writeBufferSize(32 * 1024*1024); 
+        options.writeBufferSize(100000000); 
         options.cacheSize(32 * 1048576);
         _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
       }
