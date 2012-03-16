@@ -119,25 +119,15 @@ public class Sqs4jApp implements Runnable {
   public Sqs4jApp(String args[]) {
     java.lang.Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       public void run() {
-        doStop2();
+        doStop();
       }
     }));
 
     CONF_NAME = System.getProperty("user.dir", ".") + "/conf/Sqs4jConf.xml";
 
-    if (!this.doStart2()) {
+    if (!this.doStart()) {
       System.exit(-1);
     }
-
-    //    for (; ;) {
-    //      try {
-    //        java.util.concurrent.TimeUnit.SECONDS.sleep(10);
-    //      } catch (InterruptedException ex) {
-    //        Thread.currentThread().interrupt();
-    //        System.exit(0);
-    //      }
-    //    }
-
   }
 
   String getBASE64DecodeOfStr(String inStr, String charset) throws UnsupportedEncodingException, IOException {
@@ -164,7 +154,7 @@ public class Sqs4jApp implements Runnable {
       encoding = encoding.substring(0, end);
     }
     encoding = encoding.trim();
-    if ((encoding.length() > 2) && (encoding.startsWith("\"")) && (encoding.endsWith("\""))) {
+    if ((encoding.length() > 2) && (encoding.charAt(0) == '"') && (encoding.endsWith("\""))) {
       encoding = encoding.substring(1, encoding.length() - 1);
     }
     return (encoding.trim());
@@ -465,7 +455,7 @@ public class Sqs4jApp implements Runnable {
     return queue_get_value;
   }
 
-  public boolean doStart2() {
+  public boolean doStart() {
     try {
       try {
         _conf = Sqs4jConf.load(CONF_NAME);
@@ -571,7 +561,7 @@ public class Sqs4jApp implements Runnable {
     }
   }
 
-  public boolean doStop2() {
+  public boolean doStop() {
     _scheduleSync.shutdown();
 
     if (_channel != null) {
@@ -682,7 +672,7 @@ public class Sqs4jApp implements Runnable {
       Constructor constructorObjectName = classObjectName.getConstructor(new Class[] { String.class });
       Method methodRegisterMBean = classMBeanServer.getMethod("registerMBean", new Class[] { Object.class,
           classObjectName });
-      Object mbs = methodGetPlatformMBeanServer.invoke((Object) null, (Object[]) null);
+      Object mbs = methodGetPlatformMBeanServer.invoke(null, (Object[]) null);
       Object oName = constructorObjectName.newInstance(new Object[] { name });
       methodRegisterMBean.invoke(mbs, new Object[] { mbean, oName });
 
