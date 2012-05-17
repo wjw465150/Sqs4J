@@ -53,6 +53,10 @@ public class Sqs4jApp implements Runnable {
   static final String VERSION = "1.3.8"; //当前版本
   static final String DB_CHARSET = "UTF-8"; //数据库字符集
   static final long DEFAULT_MAXQUEUE = 1000000000; //缺省队列最大数是10亿条
+  static final String KEY_PUTPOS = "putpos";
+  static final String KEY_GETPOS = "getpos";
+  static final String KEY_MAXQUEUE = "maxqueue";
+
   private final String CONF_NAME; //配置文件
 
   private org.slf4j.Logger _log = org.slf4j.LoggerFactory.getLogger(this.getClass());
@@ -215,7 +219,7 @@ public class Sqs4jApp implements Runnable {
   /* 读取队列写入点的值 */
 
   long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "putpos").getBytes(DB_CHARSET));
+    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_PUTPOS).getBytes(DB_CHARSET));
     DatabaseEntry value = new DatabaseEntry();
 
     OperationStatus status = _db.get(null, key, value, LockMode.DEFAULT);
@@ -229,7 +233,7 @@ public class Sqs4jApp implements Runnable {
   /* 读取队列读取点的值 */
 
   long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "getpos").getBytes(DB_CHARSET));
+    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_GETPOS).getBytes(DB_CHARSET));
     DatabaseEntry value = new DatabaseEntry();
 
     OperationStatus status = _db.get(null, key, value, LockMode.DEFAULT);
@@ -243,7 +247,7 @@ public class Sqs4jApp implements Runnable {
   /* 读取用于设置的最大队列数 */
 
   long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
-    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "maxqueue").getBytes(DB_CHARSET));
+    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_MAXQUEUE).getBytes(DB_CHARSET));
     DatabaseEntry value = new DatabaseEntry();
 
     OperationStatus status = _db.get(null, key, value, LockMode.DEFAULT);
@@ -271,7 +275,7 @@ public class Sqs4jApp implements Runnable {
     /* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
     if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value
         && queue_put_value >= queue_get_value) {
-      DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "maxqueue").getBytes(DB_CHARSET));
+      DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_MAXQUEUE).getBytes(DB_CHARSET));
       DatabaseEntry value = new DatabaseEntry(String.valueOf(httpsqs_input_num).getBytes(DB_CHARSET));
 
       OperationStatus status = _db.put(null, key, value);
@@ -295,13 +299,13 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   boolean httpsqs_reset(String httpsqs_input_name) throws UnsupportedEncodingException {
-    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "putpos").getBytes(DB_CHARSET));
+    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_PUTPOS).getBytes(DB_CHARSET));
     _db.delete(null, key);
 
-    key.setData(String.format("%s:%s", httpsqs_input_name, "getpos").getBytes(DB_CHARSET));
+    key.setData(String.format("%s:%s", httpsqs_input_name, KEY_GETPOS).getBytes(DB_CHARSET));
     _db.delete(null, key);
 
-    key.setData(String.format("%s:%s", httpsqs_input_name, "maxqueue").getBytes(DB_CHARSET));
+    key.setData(String.format("%s:%s", httpsqs_input_name, KEY_MAXQUEUE).getBytes(DB_CHARSET));
     _db.delete(null, key);
 
     _db.sync(); //实时刷新到磁盘
@@ -363,7 +367,7 @@ public class Sqs4jApp implements Runnable {
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "putpos").getBytes(DB_CHARSET));
+    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_PUTPOS).getBytes(DB_CHARSET));
     /* 队列写入位置点加1 */
     queue_put_value = queue_put_value + 1;
     if (queue_put_value > maxqueue_num && queue_get_value == 0) { /*
@@ -410,7 +414,7 @@ public class Sqs4jApp implements Runnable {
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, "getpos").getBytes(DB_CHARSET));
+    DatabaseEntry key = new DatabaseEntry(String.format("%s:%s", httpsqs_input_name, KEY_GETPOS).getBytes(DB_CHARSET));
     /* 如果queue_get_value的值不存在，重置为1 */
     if (queue_get_value == 0 && queue_put_value > 0) {
       queue_get_value = 1;
