@@ -8,7 +8,7 @@ public class WrapperSqs4JApp extends WrapperSimpleApp {
   public Integer start(String[] args) {
     Integer result = super.start(args);
 
-    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Started Sqs4J!");
+    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Started Wrapper Sqs4J!");
 
     return result;
   }
@@ -17,7 +17,7 @@ public class WrapperSqs4JApp extends WrapperSimpleApp {
   public int stop(int exitCode) {
     int result = super.stop(exitCode);
 
-    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Stoped Sqs4J!");
+    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Stoped Wrapper Sqs4J!");
 
     return result;
   }

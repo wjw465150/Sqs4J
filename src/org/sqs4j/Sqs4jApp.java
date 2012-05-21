@@ -36,6 +36,7 @@ import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.tanukisoftware.wrapper.WrapperManager;
 
 import com.sleepycat.je.CheckpointConfig;
 import com.sleepycat.je.Database;
@@ -558,7 +559,9 @@ public class Sqs4jApp implements Runnable {
         _log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
       }
 
-      System.out.println("Started Sqs4J!");
+      if (!WrapperManager.isControlledByNativeWrapper()) {
+        System.out.println("Started Standalone Sqs4J!");
+      }
       return true;
     } catch (Throwable ex) {
       _log.error(ex.getMessage(), ex);
@@ -643,7 +646,9 @@ public class Sqs4jApp implements Runnable {
       }
     }
 
-    System.out.println("Stoped Sqs4J!");
+    if (!WrapperManager.isControlledByNativeWrapper()) {
+      System.out.println("Stoped Standalone Sqs4J!");
+    }
     return true;
   }
 
