@@ -32,7 +32,6 @@ import javax.security.auth.Subject;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
-import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
 import org.iq80.leveldb.impl.DbImpl;
@@ -41,6 +40,7 @@ import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.tanukisoftware.wrapper.WrapperManager;
 
 /**
  * 基于HTTP协议的轻量级开源简单队列服务. User: wstone Date: 2010-7-30 Time: 11:44:52
@@ -507,7 +507,10 @@ public class Sqs4jApp implements Runnable {
 
         _log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
       }
-      System.out.println("Started Sqs4J!");
+
+      if (!WrapperManager.isControlledByNativeWrapper()) {
+        System.out.println("Started Standalone Sqs4J!");
+      }
 
       return true;
     } catch (Throwable ex) {
@@ -565,7 +568,9 @@ public class Sqs4jApp implements Runnable {
       }
     }
 
-    System.out.println("Stoped Sqs4J!");
+    if (!WrapperManager.isControlledByNativeWrapper()) {
+      System.out.println("Stoped Standalone Sqs4J!");
+    }
     return true;
   }
 
