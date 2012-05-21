@@ -1,15 +1,27 @@
 package org.sqs4j;
 
-/**
- * Created by IntelliJ IDEA.
- * User: Administrator
- * Date: 2010-7-30
- * Time: 11:41:50
- * To change this template use File | Settings | File Templates.
- */
+import org.tanukisoftware.wrapper.WrapperManager;
 import org.tanukisoftware.wrapper.WrapperSimpleApp;
 
-public class WrapperSqs4JApp  extends WrapperSimpleApp {
+public class WrapperSqs4JApp extends WrapperSimpleApp {
+  @Override
+  public Integer start(String[] args) {
+    Integer result = super.start(args);
+
+    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Started Sqs4J!");
+
+    return result;
+  }
+
+  @Override
+  public int stop(int exitCode) {
+    int result = super.stop(exitCode);
+
+    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Stoped Sqs4J!");
+
+    return result;
+  }
+
   protected WrapperSqs4JApp(String[] strings) {
     super(strings);
   }
