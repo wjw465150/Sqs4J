@@ -548,10 +548,18 @@ public class Sqs4jApp implements Runnable {
         }
 
         ServerBootstrap _server = new ServerBootstrap(new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool()));
+
+        //Options for a parent channel
         _server.setOption("tcpNoDelay", true);
         _server.setOption("reuseAddress", true);
         _server.setOption("soTimeout", _conf.soTimeout * 1000);
         _server.setOption("backlog", _conf.backlog);
+
+        //Options for its children
+        _server.setOption("child.tcpNoDelay", true);
+        _server.setOption("child.reuseAddress", true);
+        _server.setOption("child.keepAlive", true);
+        //_server.setOption("child.receiveBufferSize", 1048576);  //1M
 
         _server.setPipelineFactory(new HttpServerPipelineFactory(this));
         _channel = _server.bind(addr);
