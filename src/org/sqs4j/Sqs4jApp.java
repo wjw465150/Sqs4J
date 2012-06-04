@@ -433,44 +433,6 @@ public class Sqs4jApp implements Runnable {
         _conf.auth = null;
       }
 
-      if (_jmxCS == null) {
-        Map<String, Object> env = new HashMap<String, Object>();
-        env.put(JMXConnectorServer.AUTHENTICATOR, new JMXAuthenticator() {
-          public Subject authenticate(Object credentials) {
-            String[] sCredentials = (String[]) credentials;
-            String userName = sCredentials[0];
-            String password = sCredentials[1];
-            if (_conf.adminUser.equals(userName) && _conf.adminPass.equals(password)) {
-              Set<Principal> principals = new HashSet<Principal>();
-              principals.add(new JMXPrincipal(userName));
-              return new Subject(true, principals, Collections.EMPTY_SET, Collections.EMPTY_SET);
-            }
-
-            throw new SecurityException("Authentication failed! ");
-          }
-        });
-
-        synchronized (LocateRegistry.class) {
-          try {
-            _rmiRegistry = LocateRegistry.getRegistry(_conf.jmxPort);
-            _rmiRegistry.list();
-            _rmiCreated = false;
-            _log.info("Detect RMI registry:" + _rmiRegistry.toString());
-          } catch (RemoteException ex) {
-            _rmiRegistry = LocateRegistry.createRegistry(_conf.jmxPort);
-            _rmiRegistry.list();
-            _rmiCreated = true;
-            _log.info("Could not detect local RMI registry - creating new one:" + _rmiRegistry.toString());
-          }
-        }
-
-        String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:" + _conf.jmxPort
-            + "/jmxrmi";
-        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(new JMXServiceURL(serviceUrl), env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
-        _jmxCS.start();
-        registerMBean(new org.sqs4j.jmx.Sqs4J(this), " org.sqs4j:type=Sqs4J");
-      }
-
       if (_db == null) {
         if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
@@ -514,6 +476,44 @@ public class Sqs4jApp implements Runnable {
         _channel = _server.bind(addr);
 
         _log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
+      }
+
+      if (_jmxCS == null) {
+        Map<String, Object> env = new HashMap<String, Object>();
+        env.put(JMXConnectorServer.AUTHENTICATOR, new JMXAuthenticator() {
+          public Subject authenticate(Object credentials) {
+            String[] sCredentials = (String[]) credentials;
+            String userName = sCredentials[0];
+            String password = sCredentials[1];
+            if (_conf.adminUser.equals(userName) && _conf.adminPass.equals(password)) {
+              Set<Principal> principals = new HashSet<Principal>();
+              principals.add(new JMXPrincipal(userName));
+              return new Subject(true, principals, Collections.EMPTY_SET, Collections.EMPTY_SET);
+            }
+
+            throw new SecurityException("Authentication failed! ");
+          }
+        });
+
+        synchronized (LocateRegistry.class) {
+          try {
+            _rmiRegistry = LocateRegistry.getRegistry(_conf.jmxPort);
+            _rmiRegistry.list();
+            _rmiCreated = false;
+            _log.info("Detect RMI registry:" + _rmiRegistry.toString());
+          } catch (RemoteException ex) {
+            _rmiRegistry = LocateRegistry.createRegistry(_conf.jmxPort);
+            _rmiRegistry.list();
+            _rmiCreated = true;
+            _log.info("Could not detect local RMI registry - creating new one:" + _rmiRegistry.toString());
+          }
+        }
+
+        String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:" + _conf.jmxPort
+            + "/jmxrmi";
+        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(new JMXServiceURL(serviceUrl), env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
+        _jmxCS.start();
+        registerMBean(new org.sqs4j.jmx.Sqs4J(this), " org.sqs4j:type=Sqs4J");
       }
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
