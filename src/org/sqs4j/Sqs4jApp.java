@@ -564,7 +564,7 @@ public class Sqs4jApp implements Runnable {
             + "/jmxrmi";
         _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(new JMXServiceURL(serviceUrl), env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
         _jmxCS.start();
-        registerMBean(new org.sqs4j.jmx.Sqs4J(this), " org.sqs4j:type=Sqs4J");
+        registerMBean(new org.sqs4j.jmx.Sqs4J(this), "org.sqs4j:type=Sqs4J");
       }
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
