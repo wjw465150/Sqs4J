@@ -6,7 +6,7 @@
 	<classpathentry kind="lib" path="lib/slf4j-log4j.jar"/>
 	<classpathentry kind="lib" path="bin/wrapper.jar"/>
 	<classpathentry kind="lib" path="lib/log4j-1.2.17.jar"/>
-	<classpathentry kind="lib" path="lib/netty-3.5.0.Final.jar"/>
 	<classpathentry kind="lib" path="lib/BerkeleyDB-je-5.0.73.jar"/>
+	<classpathentry kind="lib" path="lib/netty-3.6.5.Final.jar"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>
