@@ -104,11 +104,11 @@ public class Sqs4jApp implements Runnable {
   @Override
   //定时将内存中的内容写入磁盘
   public void run() {
-    try {
-      ((DbImpl) _db).flushMemTable();
-    } catch (Throwable thex) {
-      thex.printStackTrace();
-    }
+//    try {
+//      ((DbImpl) _db).flushMemTable();
+//    } catch (Throwable thex) {
+//      thex.printStackTrace();
+//    }
   }
 
   /**
