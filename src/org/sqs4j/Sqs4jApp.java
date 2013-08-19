@@ -438,15 +438,22 @@ public class Sqs4jApp implements Runnable {
         if (null == _conf.dbPath || 0 == _conf.dbPath.length()) {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
-
+        
+        org.iq80.leveldb.Logger logger = new org.iq80.leveldb.Logger() {
+          public void log(String message) {
+            _log.info(message);
+          }
+        };
+        
         Options options = new Options().createIfMissing(true);
+        options.logger(logger);
         /*
          * LevelDB的sst文件大小默认是2M起，如果想入库时把这个搞大，只需要把options.write_buffer_size搞大，
          * 比如options.write_buffer_size = 100000000。这样一上来sst就是32M起。
          */
         options.writeBufferSize(100000000);
         options.cacheSize(100 * 1048576); // 100MB cache
-        //options.compressionType(CompressionType.NONE);
+        options.compressionType(CompressionType.NONE);
         _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
