@@ -27,7 +27,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
   //没有共享冲突,可以放心使用实例变量!!!
   private HttpRequest _request;
   private boolean _readingChunks;
-  private final StringBuilder _buf = new StringBuilder(128);  //Buffer that stores the response content
+  private final StringBuilder _buf = new StringBuilder(128); //Buffer that stores the response content
 
   private final Sqs4jApp _app;
   private Charset _charsetObj;
@@ -69,15 +69,14 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
   }
 
   @Override
-  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
-          throws Exception {
+  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
     //e.getCause().printStackTrace();
     e.getChannel().close();
   }
 
   /**
    * 处理模块
-   *
+   * 
    * @param ctx
    * @param e
    * @throws Exception
@@ -108,13 +107,13 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     QueryStringDecoder queryStringDecoder = new QueryStringDecoder(_request.getUri(), _app._conf.charsetDefaultCharset);
     Map<String, List<String>> requestParameters = queryStringDecoder.getParameters();
 
-    String charset = (null != requestParameters.get("charset")) ? requestParameters.get("charset").get(0) : null;  //先从query里查找charset
+    String charset = (null != requestParameters.get("charset")) ? requestParameters.get("charset").get(0) : null; //先从query里查找charset
     if (null == charset) {
       if (null != _request.getHeader("Content-Type")) {
         charset = _app.getCharsetFromContentType(_request.getHeader("Content-Type"));
         if (null == charset) {
           charset = _app._conf.defaultCharset;
-        } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) {  //说明查询参数里指定了字符集,并且与缺省字符集不一致
+        } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) { //说明查询参数里指定了字符集,并且与缺省字符集不一致
           _charsetObj = Charset.forName(charset);
           queryStringDecoder = new QueryStringDecoder(_request.getUri(), _charsetObj);
           requestParameters = queryStringDecoder.getParameters();
@@ -122,19 +121,25 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
       } else {
         charset = _app._conf.defaultCharset;
       }
-    } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) {  //说明查询参数里指定了字符集,并且与缺省字符集不一致
+    } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) { //说明查询参数里指定了字符集,并且与缺省字符集不一致
       _charsetObj = Charset.forName(charset);
       queryStringDecoder = new QueryStringDecoder(_request.getUri(), _charsetObj);
       requestParameters = queryStringDecoder.getParameters();
     }
 
     //接收GET表单参数
-    final String httpsqs_input_auth = (null != requestParameters.get("auth")) ? requestParameters.get("auth").get(0) : null; /* get,put,view的验证密码 */
-    final String httpsqs_input_name = (null != requestParameters.get("name")) ? requestParameters.get("name").get(0) : null; /* 队列名称 */
-    final String httpsqs_input_opt = (null != requestParameters.get("opt")) ? requestParameters.get("opt").get(0) : null; //操作类别
-    final String httpsqs_input_data = (null != requestParameters.get("data")) ? requestParameters.get("data").get(0) : null; //队列数据
-    final String httpsqs_input_pos_tmp = (null != requestParameters.get("pos")) ? requestParameters.get("pos").get(0) : null; //队列位置点
-    final String httpsqs_input_num_tmp = (null != requestParameters.get("num")) ? requestParameters.get("num").get(0) : null; //队列总长度
+    final String httpsqs_input_auth = (null != requestParameters.get("auth")) ? requestParameters.get("auth").get(0)
+        : null; /* get,put,view的验证密码 */
+    final String httpsqs_input_name = (null != requestParameters.get("name")) ? requestParameters.get("name").get(0)
+        : null; /* 队列名称 */
+    final String httpsqs_input_opt = (null != requestParameters.get("opt")) ? requestParameters.get("opt").get(0)
+        : null; //操作类别
+    final String httpsqs_input_data = (null != requestParameters.get("data")) ? requestParameters.get("data").get(0)
+        : null; //队列数据
+    final String httpsqs_input_pos_tmp = (null != requestParameters.get("pos")) ? requestParameters.get("pos").get(0)
+        : null; //队列位置点
+    final String httpsqs_input_num_tmp = (null != requestParameters.get("num")) ? requestParameters.get("num").get(0)
+        : null; //队列总长度
     long httpsqs_input_pos = 0;
     long httpsqs_input_num = 0;
     if (null != httpsqs_input_pos_tmp) {
@@ -152,7 +157,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
 
     Sqs4jApp._lock.lock();
     try {
-      /*参数是否存在判断 */
+      /* 参数是否存在判断 */
       if (null != httpsqs_input_name && null != httpsqs_input_opt && httpsqs_input_name.length() <= 256) {
         /* 入队列 */
         if (httpsqs_input_opt.equals("put")) {
@@ -223,8 +228,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           final String get_times = "1st lap";
 
           final long maxqueue = _app.httpsqs_read_maxqueue(httpsqs_input_name); /* 最大队列数量 */
-          final long putpos = _app.httpsqs_read_putpos(httpsqs_input_name);     /* 入队列写入位置 */
-          final long getpos = _app.httpsqs_read_getpos(httpsqs_input_name);     /* 出队列读取位置 */
+          final long putpos = _app.httpsqs_read_putpos(httpsqs_input_name); /* 入队列写入位置 */
+          final long getpos = _app.httpsqs_read_getpos(httpsqs_input_name); /* 出队列读取位置 */
           long ungetnum = 0;
           if (putpos >= getpos) {
             ungetnum = Math.abs(putpos - getpos); //尚未出队列条数
@@ -246,8 +251,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           final String get_times = "1st lap";
 
           final long maxqueue = _app.httpsqs_read_maxqueue(httpsqs_input_name); /* 最大队列数量 */
-          final long putpos = _app.httpsqs_read_putpos(httpsqs_input_name);     /* 入队列写入位置 */
-          final long getpos = _app.httpsqs_read_getpos(httpsqs_input_name);     /* 出队列读取位置 */
+          final long putpos = _app.httpsqs_read_putpos(httpsqs_input_name); /* 入队列写入位置 */
+          final long getpos = _app.httpsqs_read_getpos(httpsqs_input_name); /* 出队列读取位置 */
           long ungetnum = 0;
           if (putpos >= getpos) {
             ungetnum = Math.abs(putpos - getpos); //尚未出队列条数

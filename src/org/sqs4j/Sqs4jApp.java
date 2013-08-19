@@ -32,6 +32,7 @@ import javax.security.auth.Subject;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
+import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
 import org.iq80.leveldb.impl.DbImpl;
@@ -443,8 +444,9 @@ public class Sqs4jApp implements Runnable {
          * LevelDB的sst文件大小默认是2M起，如果想入库时把这个搞大，只需要把options.write_buffer_size搞大，
          * 比如options.write_buffer_size = 100000000。这样一上来sst就是32M起。
          */
-        options.writeBufferSize(100000000); 
-        options.cacheSize(32 * 1048576);
+        options.writeBufferSize(100000000);
+        options.cacheSize(100 * 1048576); // 100MB cache
+        options.compressionType(CompressionType.NONE);
         _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
