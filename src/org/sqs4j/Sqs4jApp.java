@@ -343,11 +343,11 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_now_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
+    final long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
-    long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
+    final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    String key = httpsqs_input_name + KEY_PUTPOS;
+    final String key = httpsqs_input_name + KEY_PUTPOS;
     /* 队列写入位置点加1 */
     queue_put_value = queue_put_value + 1;
     if (queue_put_value > maxqueue_num && 0 == queue_get_value) { /*
@@ -381,33 +381,33 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_now_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
-    long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
+    final long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
+    final long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
-    String key = httpsqs_input_name + KEY_GETPOS;
+    final String key = httpsqs_input_name + KEY_GETPOS;
     /* 如果queue_get_value的值不存在，重置为1 */
     if (0 == queue_get_value && queue_put_value > 0) {
       queue_get_value = 1;
-      String value = String.valueOf(queue_get_value);
+      final String value = String.valueOf(queue_get_value);
       _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 如果队列的读取值（出队列）小于队列的写入值（入队列） */
     } else if (queue_get_value < queue_put_value) {
       queue_get_value = queue_get_value + 1;
-      String value = String.valueOf(queue_get_value);
+      final String value = String.valueOf(queue_get_value);
       _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 如果队列的读取值（出队列）大于队列的写入值（入队列），并且队列的读取值（出队列）小于最大队列数量 */
     } else if (queue_get_value > queue_put_value && queue_get_value < maxqueue_num) {
       queue_get_value = queue_get_value + 1;
-      String value = String.valueOf(queue_get_value);
+      final String value = String.valueOf(queue_get_value);
       _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 如果队列的读取值（出队列）大于队列的写入值（入队列），并且队列的读取值（出队列）等于最大队列数量 */
     } else if (queue_get_value > queue_put_value && queue_get_value == maxqueue_num) {
       queue_get_value = 1;
-      String value = String.valueOf(queue_get_value);
+      final String value = String.valueOf(queue_get_value);
       _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
 
       /* 队列的读取值（出队列）等于队列的写入值（入队列），即队列中的数据已全部读出 */
@@ -439,13 +439,13 @@ public class Sqs4jApp implements Runnable {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
         
-        org.iq80.leveldb.Logger logger = new org.iq80.leveldb.Logger() {
+        final org.iq80.leveldb.Logger logger = new org.iq80.leveldb.Logger() {
           public void log(String message) {
             _log.info(message);
           }
         };
         
-        Options options = new Options().createIfMissing(true);
+        final Options options = new Options().createIfMissing(true);
         options.logger(logger);
         /*
          * LevelDB的sst文件大小默认是2M起，如果想入库时把这个搞大，只需要把options.write_buffer_size搞大，
@@ -467,35 +467,35 @@ public class Sqs4jApp implements Runnable {
           addr = new InetSocketAddress(_conf.bindAddress, _conf.bindPort);
         }
 
-        ServerBootstrap _server = new ServerBootstrap(new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool()));
+        final ServerBootstrap server = new ServerBootstrap(new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool()));
 
         //Options for a parent channel
-        _server.setOption("tcpNoDelay", true);
-        _server.setOption("reuseAddress", true);
-        _server.setOption("soTimeout", _conf.soTimeout * 1000);
-        _server.setOption("backlog", _conf.backlog);
+        server.setOption("tcpNoDelay", true);
+        server.setOption("reuseAddress", true);
+        server.setOption("soTimeout", _conf.soTimeout * 1000);
+        server.setOption("backlog", _conf.backlog);
 
         //Options for its children
-        _server.setOption("child.tcpNoDelay", true);
-        _server.setOption("child.reuseAddress", true);
-        _server.setOption("child.keepAlive", true);
+        server.setOption("child.tcpNoDelay", true);
+        server.setOption("child.reuseAddress", true);
+        server.setOption("child.keepAlive", true);
         //_server.setOption("child.receiveBufferSize", 1048576);  //1M
 
-        _server.setPipelineFactory(new HttpServerPipelineFactory(this));
-        _channel = _server.bind(addr);
+        server.setPipelineFactory(new HttpServerPipelineFactory(this));
+        _channel = server.bind(addr);
 
         _log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
       }
 
       if (_jmxCS == null) {
-        Map<String, Object> env = new HashMap<String, Object>();
+        final Map<String, Object> env = new HashMap<String, Object>();
         env.put(JMXConnectorServer.AUTHENTICATOR, new JMXAuthenticator() {
           public Subject authenticate(Object credentials) {
-            String[] sCredentials = (String[]) credentials;
-            String userName = sCredentials[0];
-            String password = sCredentials[1];
+            final String[] sCredentials = (String[]) credentials;
+            final String userName = sCredentials[0];
+            final String password = sCredentials[1];
             if (_conf.adminUser.equals(userName) && _conf.adminPass.equals(password)) {
-              Set<Principal> principals = new HashSet<Principal>();
+              final Set<Principal> principals = new HashSet<Principal>();
               principals.add(new JMXPrincipal(userName));
               return new Subject(true, principals, Collections.EMPTY_SET, Collections.EMPTY_SET);
             }
@@ -518,7 +518,7 @@ public class Sqs4jApp implements Runnable {
           }
         }
 
-        String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:" + _conf.jmxPort
+        final String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:" + _conf.jmxPort
             + "/jmxrmi";
         _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(new JMXServiceURL(serviceUrl), env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
         _jmxCS.start();
@@ -542,7 +542,7 @@ public class Sqs4jApp implements Runnable {
     if (_channel != null) {
       try {
         _log.info("Now stoping Sqs4J Server ......");
-        ChannelFuture channelFuture = _channel.close();
+        final ChannelFuture channelFuture = _channel.close();
         channelFuture.awaitUninterruptibly();
       } catch (Throwable ex) {
         _log.error(ex.getMessage(), ex);
