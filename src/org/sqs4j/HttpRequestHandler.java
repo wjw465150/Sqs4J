@@ -128,18 +128,12 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     }
 
     //接收GET表单参数
-    final String httpsqs_input_auth = (null != requestParameters.get("auth")) ? requestParameters.get("auth").get(0)
-        : null; /* get,put,view的验证密码 */
-    final String httpsqs_input_name = (null != requestParameters.get("name")) ? requestParameters.get("name").get(0)
-        : null; /* 队列名称 */
-    final String httpsqs_input_opt = (null != requestParameters.get("opt")) ? requestParameters.get("opt").get(0)
-        : null; //操作类别
-    final String httpsqs_input_data = (null != requestParameters.get("data")) ? requestParameters.get("data").get(0)
-        : null; //队列数据
-    final String httpsqs_input_pos_tmp = (null != requestParameters.get("pos")) ? requestParameters.get("pos").get(0)
-        : null; //队列位置点
-    final String httpsqs_input_num_tmp = (null != requestParameters.get("num")) ? requestParameters.get("num").get(0)
-        : null; //队列总长度
+    final String httpsqs_input_auth = (null != requestParameters.get("auth")) ? requestParameters.get("auth").get(0) : null; /* get,put,view的验证密码 */
+    final String httpsqs_input_name = (null != requestParameters.get("name")) ? requestParameters.get("name").get(0) : null; /* 队列名称 */
+    final String httpsqs_input_opt = (null != requestParameters.get("opt")) ? requestParameters.get("opt").get(0) : null; //操作类别
+    final String httpsqs_input_data = (null != requestParameters.get("data")) ? requestParameters.get("data").get(0) : null; //队列数据
+    final String httpsqs_input_pos_tmp = (null != requestParameters.get("pos")) ? requestParameters.get("pos").get(0) : null; //队列位置点
+    final String httpsqs_input_num_tmp = (null != requestParameters.get("num")) ? requestParameters.get("num").get(0) : null; //队列总长度
     long httpsqs_input_pos = 0;
     long httpsqs_input_num = 0;
     if (null != httpsqs_input_pos_tmp) {

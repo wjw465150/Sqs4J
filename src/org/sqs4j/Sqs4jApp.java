@@ -210,11 +210,11 @@ public class Sqs4jApp implements Runnable {
   }
 
   public void flush() {
-    try {
-      ((DbImpl) _db).flushMemTable();
-    } catch (Throwable thex) {
-      thex.printStackTrace();
-    }
+//    try {
+//      ((DbImpl) _db).flushMemTable();
+//    } catch (Throwable thex) {
+//      thex.printStackTrace();
+//    }
   }
 
   /* 读取队列写入点的值 */
@@ -446,7 +446,7 @@ public class Sqs4jApp implements Runnable {
          */
         options.writeBufferSize(100000000);
         options.cacheSize(100 * 1048576); // 100MB cache
-        options.compressionType(CompressionType.NONE);
+        //options.compressionType(CompressionType.NONE);
         _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
