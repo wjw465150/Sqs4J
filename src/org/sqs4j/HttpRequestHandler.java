@@ -27,9 +27,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
   //没有共享冲突,可以放心使用实例变量!!!
   private HttpRequest _request;
   private boolean _readingChunks;
-  private StringBuilder _buf = new StringBuilder(); //Buffer that stores the response content
+  private final StringBuilder _buf = new StringBuilder(128);  //Buffer that stores the response content
 
-  private Sqs4jApp _app;
+  private final Sqs4jApp _app;
   private Charset _charsetObj;
 
   public HttpRequestHandler(Sqs4jApp app) {
@@ -42,11 +42,11 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     String password = "";
     String userPass = _request.getHeader("Authorization");
 
-    if (userPass != null) {
+    if (null != userPass) {
       userPass = userPass.substring(6, userPass.length());
 
       userPass = _app.getBASE64DecodeOfStr(userPass, _charsetObj.name());
-      int pos = userPass.indexOf(":");
+      final int pos = userPass.indexOf(':');
       if (pos > 0) {
         username = userPass.substring(0, pos);
         password = userPass.substring(pos + 1, userPass.length());
@@ -69,14 +69,15 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
   }
 
   @Override
-  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
+          throws Exception {
     //e.getCause().printStackTrace();
     e.getChannel().close();
   }
 
   /**
    * 处理模块
-   * 
+   *
    * @param ctx
    * @param e
    * @throws Exception
@@ -92,7 +93,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
         writeResponse(e);
       }
     } else {
-      HttpChunk chunk = (HttpChunk) e.getMessage();
+      final HttpChunk chunk = (HttpChunk) e.getMessage();
 
       if (chunk.isLast()) {
         _readingChunks = false;
@@ -107,13 +108,13 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     QueryStringDecoder queryStringDecoder = new QueryStringDecoder(_request.getUri(), _app._conf.charsetDefaultCharset);
     Map<String, List<String>> requestParameters = queryStringDecoder.getParameters();
 
-    String charset = requestParameters.get("charset") != null ? requestParameters.get("charset").get(0) : null; //先从query里查找charset
-    if (charset == null) {
-      if (_request.getHeader("Content-Type") != null) {
+    String charset = (null != requestParameters.get("charset")) ? requestParameters.get("charset").get(0) : null;  //先从query里查找charset
+    if (null == charset) {
+      if (null != _request.getHeader("Content-Type")) {
         charset = _app.getCharsetFromContentType(_request.getHeader("Content-Type"));
-        if (charset == null) {
+        if (null == charset) {
           charset = _app._conf.defaultCharset;
-        } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) { //说明查询参数里指定了字符集,并且与缺省字符集不一致
+        } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) {  //说明查询参数里指定了字符集,并且与缺省字符集不一致
           _charsetObj = Charset.forName(charset);
           queryStringDecoder = new QueryStringDecoder(_request.getUri(), _charsetObj);
           requestParameters = queryStringDecoder.getParameters();
@@ -121,60 +122,60 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
       } else {
         charset = _app._conf.defaultCharset;
       }
-    } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) { //说明查询参数里指定了字符集,并且与缺省字符集不一致
+    } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) {  //说明查询参数里指定了字符集,并且与缺省字符集不一致
       _charsetObj = Charset.forName(charset);
       queryStringDecoder = new QueryStringDecoder(_request.getUri(), _charsetObj);
       requestParameters = queryStringDecoder.getParameters();
     }
 
     //接收GET表单参数
-    String httpsqs_input_auth = requestParameters.get("auth") != null ? requestParameters.get("auth").get(0) : null; // get,put,view的验证密码
-    String httpsqs_input_name = requestParameters.get("name") != null ? requestParameters.get("name").get(0) : null; // 队列名称
-    String httpsqs_input_opt = requestParameters.get("opt") != null ? requestParameters.get("opt").get(0) : null; //操作类别
-    String httpsqs_input_data = requestParameters.get("data") != null ? requestParameters.get("data").get(0) : null; //队列数据
-    String httpsqs_input_pos_tmp = requestParameters.get("pos") != null ? requestParameters.get("pos").get(0) : null; //队列位置点
-    String httpsqs_input_num_tmp = requestParameters.get("num") != null ? requestParameters.get("num").get(0) : null; //队列总长度
+    final String httpsqs_input_auth = (null != requestParameters.get("auth")) ? requestParameters.get("auth").get(0) : null; /* get,put,view的验证密码 */
+    final String httpsqs_input_name = (null != requestParameters.get("name")) ? requestParameters.get("name").get(0) : null; /* 队列名称 */
+    final String httpsqs_input_opt = (null != requestParameters.get("opt")) ? requestParameters.get("opt").get(0) : null; //操作类别
+    final String httpsqs_input_data = (null != requestParameters.get("data")) ? requestParameters.get("data").get(0) : null; //队列数据
+    final String httpsqs_input_pos_tmp = (null != requestParameters.get("pos")) ? requestParameters.get("pos").get(0) : null; //队列位置点
+    final String httpsqs_input_num_tmp = (null != requestParameters.get("num")) ? requestParameters.get("num").get(0) : null; //队列总长度
     long httpsqs_input_pos = 0;
     long httpsqs_input_num = 0;
-    if (httpsqs_input_pos_tmp != null) {
+    if (null != httpsqs_input_pos_tmp) {
       httpsqs_input_pos = Long.parseLong(httpsqs_input_pos_tmp);
     }
-    if (httpsqs_input_num_tmp != null) {
+    if (null != httpsqs_input_num_tmp) {
       httpsqs_input_num = Long.parseLong(httpsqs_input_num_tmp);
     }
 
     //返回给用户的Header头信息
-    HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+    final HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
     response.setHeader("Content-Type", "text/plain;charset=" + charset);
     response.setHeader("Connection", "keep-alive");
     response.setHeader("Cache-Control", "no-cache");
 
     Sqs4jApp._lock.lock();
     try {
-      /* 参数是否存在判断 */
-      if (httpsqs_input_name != null && httpsqs_input_opt != null && httpsqs_input_name.length() <= 256) {
+      /*参数是否存在判断 */
+      if (null != httpsqs_input_name && null != httpsqs_input_opt && httpsqs_input_name.length() <= 256) {
         /* 入队列 */
         if (httpsqs_input_opt.equals("put")) {
-          if (_app._conf.auth != null && !_app._conf.auth.equals(httpsqs_input_auth)) {
+          if (null != _app._conf.auth && !_app._conf.auth.equals(httpsqs_input_auth)) {
             _buf.append("HTTPSQS_AUTH_FAILED");
           } else {
             /* 优先接收POST正文信息 */
             if (_request.getMethod().getName().equalsIgnoreCase("POST")) {
-              long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
+              final long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
               if (now_putpos > 0) {
-                String key = httpsqs_input_name + ":" + now_putpos;
-                String value = URLDecoder.decode(_request.getContent().toString(_charsetObj), charset);
+                final String key = httpsqs_input_name + ":" + now_putpos;
+                final String value = URLDecoder.decode(_request.getContent().toString(_charsetObj), charset);
                 _app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
                 response.setHeader("Pos", now_putpos);
                 _buf.append("HTTPSQS_PUT_OK");
               } else {
                 _buf.append("HTTPSQS_PUT_END");
               }
-            } else if (httpsqs_input_data != null) { //如果POST正文无内容，则取URL中data参数的值
-              long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
+            } else if (null != httpsqs_input_data) { //如果POST正文无内容，则取URL中data参数的值
+              final long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
               if (now_putpos > 0) {
-                String key = httpsqs_input_name + ":" + now_putpos;
-                String value = httpsqs_input_data;
+                final String key = httpsqs_input_name + ":" + now_putpos;
+                final String value = httpsqs_input_data;
                 _app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
                 response.setHeader("Pos", now_putpos);
                 _buf.append("HTTPSQS_PUT_OK");
@@ -186,16 +187,16 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
             }
           }
         } else if (httpsqs_input_opt.equals("get")) { //出队列
-          if (_app._conf.auth != null && !_app._conf.auth.equals(httpsqs_input_auth)) {
+          if (null != _app._conf.auth && !_app._conf.auth.equals(httpsqs_input_auth)) {
             _buf.append("HTTPSQS_AUTH_FAILED");
           } else {
-            long now_getpos = _app.httpsqs_now_getpos(httpsqs_input_name);
-            if (now_getpos == 0) {
+            final long now_getpos = _app.httpsqs_now_getpos(httpsqs_input_name);
+            if (0 == now_getpos) {
               _buf.append("HTTPSQS_GET_END");
             } else {
-              String key = httpsqs_input_name + ":" + now_getpos;
-              byte[] value = _app._db.get(key.getBytes(Sqs4jApp.DB_CHARSET));
-              if (value != null) {
+              final String key = httpsqs_input_name + ":" + now_getpos;
+              final byte[] value = _app._db.get(key.getBytes(Sqs4jApp.DB_CHARSET));
+              if (null != value) {
                 response.setHeader("Pos", now_getpos);
                 _buf.append(new String(value, Sqs4jApp.DB_CHARSET));
               } else {
@@ -206,10 +207,10 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           /* 查看单条队列内容 */
         } else if (httpsqs_input_opt.equals("view") && httpsqs_input_pos >= 1
             && httpsqs_input_pos <= Sqs4jApp.DEFAULT_MAXQUEUE) {
-          if (_app._conf.auth != null && !_app._conf.auth.equals(httpsqs_input_auth)) {
+          if (null != _app._conf.auth && !_app._conf.auth.equals(httpsqs_input_auth)) {
             _buf.append("HTTPSQS_AUTH_FAILED");
           } else {
-            String httpsqs_output_value = _app.httpsqs_view(httpsqs_input_name, httpsqs_input_pos);
+            final String httpsqs_output_value = _app.httpsqs_view(httpsqs_input_name, httpsqs_input_pos);
             if (httpsqs_output_value == null) {
               _buf.append("HTTPSQS_ERROR_NOFOUND");
             } else {
@@ -219,11 +220,11 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           /* 查看队列状态（普通浏览方式） */
         } else if (httpsqs_input_opt.equals("status")) {
           String put_times = "1st lap";
-          String get_times = "1st lap";
+          final String get_times = "1st lap";
 
-          long maxqueue = _app.httpsqs_read_maxqueue(httpsqs_input_name); /* 最大队列数量 */
-          long putpos = _app.httpsqs_read_putpos(httpsqs_input_name); /* 入队列写入位置 */
-          long getpos = _app.httpsqs_read_getpos(httpsqs_input_name); /* 出队列读取位置 */
+          final long maxqueue = _app.httpsqs_read_maxqueue(httpsqs_input_name); /* 最大队列数量 */
+          final long putpos = _app.httpsqs_read_putpos(httpsqs_input_name);     /* 入队列写入位置 */
+          final long getpos = _app.httpsqs_read_getpos(httpsqs_input_name);     /* 出队列读取位置 */
           long ungetnum = 0;
           if (putpos >= getpos) {
             ungetnum = Math.abs(putpos - getpos); //尚未出队列条数
@@ -242,11 +243,11 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           /* 查看队列状态（JSON方式，方便客服端程序处理） */
         } else if (httpsqs_input_opt.equals("status_json")) {
           String put_times = "1st lap";
-          String get_times = "1st lap";
+          final String get_times = "1st lap";
 
-          long maxqueue = _app.httpsqs_read_maxqueue(httpsqs_input_name); /* 最大队列数量 */
-          long putpos = _app.httpsqs_read_putpos(httpsqs_input_name); /* 入队列写入位置 */
-          long getpos = _app.httpsqs_read_getpos(httpsqs_input_name); /* 出队列读取位置 */
+          final long maxqueue = _app.httpsqs_read_maxqueue(httpsqs_input_name); /* 最大队列数量 */
+          final long putpos = _app.httpsqs_read_putpos(httpsqs_input_name);     /* 入队列写入位置 */
+          final long getpos = _app.httpsqs_read_getpos(httpsqs_input_name);     /* 出队列读取位置 */
           long ungetnum = 0;
           if (putpos >= getpos) {
             ungetnum = Math.abs(putpos - getpos); //尚未出队列条数
@@ -259,7 +260,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
           /* 重置队列 */
         } else if (httpsqs_input_opt.equals("reset")) {
           if (checkUser(response)) {
-            boolean reset = _app.httpsqs_reset(httpsqs_input_name);
+            final boolean reset = _app.httpsqs_reset(httpsqs_input_name);
             if (reset) {
               _buf.append(String.format("%s", "HTTPSQS_RESET_OK"));
             } else {

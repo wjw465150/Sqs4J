@@ -83,7 +83,7 @@ public class Sqs4jApp implements Runnable {
         throw new IOException("Can not create:" + System.getProperty("user.dir", ".") + "/db/");
       }
 
-      String logPath = System.getProperty("user.dir", ".") + "/conf/log4j.xml";
+      final String logPath = System.getProperty("user.dir", ".") + "/conf/log4j.xml";
       if (logPath.toLowerCase().endsWith(".xml")) {
         DOMConfigurator.configure(logPath);
       } else {
@@ -97,7 +97,7 @@ public class Sqs4jApp implements Runnable {
 
   public static void main(String args[]) {
     @SuppressWarnings("unused")
-    Sqs4jApp app = new Sqs4jApp(args);
+    final Sqs4jApp app = new Sqs4jApp(args);
   }
 
   @Override
@@ -137,20 +137,20 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   String getCharsetFromContentType(String contentType) {
-    if (contentType == null) {
+    if (null == contentType) {
       return null;
     }
-    int start = contentType.indexOf("charset=");
+    final int start = contentType.indexOf("charset=");
     if (start < 0) {
       return null;
     }
     String encoding = contentType.substring(start + 8);
-    int end = encoding.indexOf(';');
+    final int end = encoding.indexOf(';');
     if (end >= 0) {
       encoding = encoding.substring(0, end);
     }
     encoding = encoding.trim();
-    if ((encoding.length() > 2) && (encoding.charAt(0) == '"') && (encoding.endsWith("\""))) {
+    if ((encoding.length() > 2) && ('"' == encoding.charAt(0)) && (encoding.endsWith("\""))) {
       encoding = encoding.substring(1, encoding.length() - 1);
     }
     return (encoding.trim());
@@ -163,15 +163,15 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   String getCharsetFromQuery(String query) {
-    if (query == null) {
+    if (null == query) {
       return null;
     }
-    int start = query.indexOf("charset=");
+    final int start = query.indexOf("charset=");
     if (start < 0) {
       return null;
     }
     String encoding = query.substring(start + 8);
-    int end = encoding.indexOf('&');
+    final int end = encoding.indexOf('&');
     if (end >= 0) {
       encoding = encoding.substring(0, end);
     }
@@ -187,16 +187,16 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   private Map<String, String> makeParameters(String query, String charset) {
-    Map<String, String> map = new HashMap<String, String>();
-    if (query == null || charset == null) {
+    final Map<String, String> map = new HashMap<String, String>();
+    if (null == query || null == charset) {
       return map;
     }
 
-    String[] keyValues;
+    final String[] keyValues;
     keyValues = query.split("&");
     for (String keyValue : keyValues) {
       String[] kv = keyValue.split("=");
-      if (kv.length == 2) {
+      if (2 == kv.length) {
         try {
           map.put(kv[0], URLDecoder.decode(kv[1], charset));
         } catch (UnsupportedEncodingException e) {
@@ -219,9 +219,9 @@ public class Sqs4jApp implements Runnable {
   /* 读取队列写入点的值 */
 
   long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    String key = httpsqs_input_name + KEY_PUTPOS;
-    byte[] value = _db.get(key.getBytes(DB_CHARSET));
-    if (value == null) {
+    final String key = httpsqs_input_name + KEY_PUTPOS;
+    final byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (null == value) {
       return 0;
     } else {
       return Long.parseLong(new String(value, DB_CHARSET));
@@ -231,9 +231,9 @@ public class Sqs4jApp implements Runnable {
   /* 读取队列读取点的值 */
 
   long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
-    String key = httpsqs_input_name + KEY_GETPOS;
-    byte[] value = _db.get(key.getBytes(DB_CHARSET));
-    if (value == null) {
+    final String key = httpsqs_input_name + KEY_GETPOS;
+    final byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (null == value) {
       return 0;
     } else {
       return Long.parseLong(new String(value, DB_CHARSET));
@@ -243,9 +243,9 @@ public class Sqs4jApp implements Runnable {
   /* 读取用于设置的最大队列数 */
 
   long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
-    String key = httpsqs_input_name + KEY_MAXQUEUE;
-    byte[] value = _db.get(key.getBytes(DB_CHARSET));
-    if (value == null) {
+    final String key = httpsqs_input_name + KEY_MAXQUEUE;
+    final byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (null == value) {
       return DEFAULT_MAXQUEUE;
     } else {
       return Long.parseLong(new String(value, DB_CHARSET));
@@ -261,13 +261,13 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   long httpsqs_maxqueue(String httpsqs_input_name, long httpsqs_input_num) throws UnsupportedEncodingException {
-    long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
-    long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
+    final long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
+    final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
     /* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
     if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value
         && queue_put_value >= queue_get_value) {
-      String key = httpsqs_input_name + KEY_MAXQUEUE;
+      final String key = httpsqs_input_name + KEY_MAXQUEUE;
       _db.put(key.getBytes(DB_CHARSET), String.valueOf(httpsqs_input_num).getBytes(DB_CHARSET));
 
       this.flush(); //实时刷新到磁盘
@@ -302,9 +302,9 @@ public class Sqs4jApp implements Runnable {
    * @return
    */
   String httpsqs_view(String httpsqs_input_name, long pos) throws UnsupportedEncodingException {
-    String key = httpsqs_input_name + ":" + pos;
-    byte[] value = _db.get(key.getBytes(DB_CHARSET));
-    if (value == null) {
+    final String key = httpsqs_input_name + ":" + pos;
+    final byte[] value = _db.get(key.getBytes(DB_CHARSET));
+    if (null == value) {
       return null;
     } else {
       return new String(value, DB_CHARSET);
@@ -349,7 +349,7 @@ public class Sqs4jApp implements Runnable {
     String key = httpsqs_input_name + KEY_PUTPOS;
     /* 队列写入位置点加1 */
     queue_put_value = queue_put_value + 1;
-    if (queue_put_value > maxqueue_num && queue_get_value == 0) { /*
+    if (queue_put_value > maxqueue_num && 0 == queue_get_value) { /*
                                                                    * 如果队列写入ID+1
                                                                    * 之后追上队列读取ID
                                                                    * ，则说明队列已满
@@ -366,7 +366,7 @@ public class Sqs4jApp implements Runnable {
                                                   */
       _db.put(key.getBytes(DB_CHARSET), "1".getBytes(DB_CHARSET));
     } else { /* 队列写入位置点加1后的值，回写入数据库 */
-      String value = String.valueOf(queue_put_value);
+      final String value = String.valueOf(queue_put_value);
       _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
     }
 
@@ -386,7 +386,7 @@ public class Sqs4jApp implements Runnable {
 
     String key = httpsqs_input_name + KEY_GETPOS;
     /* 如果queue_get_value的值不存在，重置为1 */
-    if (queue_get_value == 0 && queue_put_value > 0) {
+    if (0 == queue_get_value && queue_put_value > 0) {
       queue_get_value = 1;
       String value = String.valueOf(queue_get_value);
       _db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
@@ -426,15 +426,15 @@ public class Sqs4jApp implements Runnable {
         _conf = new Sqs4jConf();
         _conf.store(CONF_NAME);
       }
-      if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
+      if (null == _conf.dbPath || 0 == _conf.dbPath.length()) {
         _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
       }
-      if (_conf.auth != null && _conf.auth.trim().length() == 0) {
+      if (null != _conf.auth && 0 == _conf.auth.trim().length()) {
         _conf.auth = null;
       }
 
-      if (_db == null) {
-        if (_conf.dbPath == null || _conf.dbPath.length() == 0) {
+      if (null == _db) {
+        if (null == _conf.dbPath || 0 == _conf.dbPath.length()) {
           _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
         }
 
@@ -450,7 +450,7 @@ public class Sqs4jApp implements Runnable {
 
       _scheduleSync.scheduleWithFixedDelay(this, 1, _conf.syncinterval, TimeUnit.SECONDS);
 
-      if (_channel == null) {
+      if (null == _channel) {
         InetSocketAddress addr;
         if (_conf.bindAddress.equals("*")) {
           addr = new InetSocketAddress(_conf.bindPort);
