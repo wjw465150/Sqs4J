@@ -104,7 +104,11 @@ public class Sqs4jApp implements Runnable {
   @Override
   //定时将内存中的内容写入磁盘
   public void run() {
-    //this.flush();
+    try {
+      ((DbImpl) _db).flushMemTable();
+    } catch (Throwable thex) {
+      thex.printStackTrace();
+    }
   }
 
   /**
@@ -453,7 +457,7 @@ public class Sqs4jApp implements Runnable {
          */
         options.writeBufferSize(100000000);
         options.cacheSize(100 * 1048576); // 100MB cache
-        options.compressionType(CompressionType.NONE);
+        options.compressionType(CompressionType.SNAPPY);
         _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
