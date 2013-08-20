@@ -32,11 +32,10 @@ import javax.security.auth.Subject;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
+import org.fusesource.leveldbjni.JniDBFactory;
 import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
-import org.iq80.leveldb.impl.DbImpl;
-import org.iq80.leveldb.impl.Iq80DBFactory;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -210,11 +209,7 @@ public class Sqs4jApp implements Runnable {
   }
 
   public void flush() {
-    try {
-      ((DbImpl) _db).flushMemTable();
-    } catch (Throwable thex) {
-      thex.printStackTrace();
-    }
+    //level jni no opt!
   }
 
   /* 读取队列写入点的值 */
@@ -452,10 +447,11 @@ public class Sqs4jApp implements Runnable {
          * 比如options.write_buffer_size = 100000000。这样一上来sst就是32M起。
          */
         options.writeBufferSize(256 * 1024 * 1024); //log大小设成256M，这样减少切换日志的开销和减少数据合并的频率。
-        options.blockSize(256 * 1024);  //256KB Block Size 
-        options.cacheSize(100 * 1048576); // 100MB cache
-        options.compressionType(CompressionType.NONE);
-        _db = Iq80DBFactory.factory.open(new File(_conf.dbPath), options);
+        //options.blockSize(256 * 1024);  //256KB Block Size 
+        options.cacheSize(100 * 1024 * 1024); // 100MB cache
+        options.compressionType(CompressionType.SNAPPY);
+        JniDBFactory.pushMemoryPool(1024 * 512);  //Using a memory pool to make native memory allocations more efficient
+        _db = JniDBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
       _scheduleSync.scheduleWithFixedDelay(this, 1, _conf.syncinterval, TimeUnit.SECONDS);
@@ -563,6 +559,7 @@ public class Sqs4jApp implements Runnable {
         _log.error(ex.getMessage(), ex);
       } finally {
         _db = null;
+        JniDBFactory.popMemoryPool();
       }
     }
 
