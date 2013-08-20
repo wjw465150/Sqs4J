@@ -450,11 +450,6 @@ public class Sqs4jApp implements Runnable {
         options.blockSize(256 * 1024);  //256KB Block Size 
         options.cacheSize(100 * 1024 * 1024); // 100MB cache
         options.compressionType(CompressionType.SNAPPY);
-        try {
-          JniDBFactory.pushMemoryPool(256 * 1024 * 1024);  //Using a memory pool to make native memory allocations more efficient
-        } catch(Throwable thex) {
-          _log.warn(thex.getMessage(), thex);
-        }
         _db = JniDBFactory.factory.open(new File(_conf.dbPath), options);
       }
 
@@ -563,11 +558,6 @@ public class Sqs4jApp implements Runnable {
         _log.error(ex.getMessage(), ex);
       } finally {
         _db = null;
-        try {
-          JniDBFactory.popMemoryPool();
-        } catch (Throwable thex) {
-          _log.warn(thex.getMessage(), thex);
-        }
       }
     }
 
