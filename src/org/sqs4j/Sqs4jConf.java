@@ -81,7 +81,16 @@ public class Sqs4jConf {
         dbPath = "";
       }
       out = new FileOutputStream(path);
-      marshaller(this, out, true);
+      if (this.auth == null) {
+        try {
+          this.auth = "";
+          marshaller(this, out, true);
+        } finally {
+          this.auth = null;
+        }
+      } else {
+        marshaller(this, out, true);
+      }
     } finally {
       if (out != null) {
         try {
@@ -114,8 +123,8 @@ public class Sqs4jConf {
   public String toString() {
     return "Sqs4jConf{" + "bindAddress='" + bindAddress + '\'' + ", bindPort=" + bindPort + ", backlog=" + backlog
         + ", soTimeout=" + soTimeout + ", defaultCharset='" + defaultCharset + '\'' + ", dbPath='" + dbPath + '\''
-        + ", syncinterval=" + syncinterval + ", adminUser='" + adminUser + '\'' + ", adminPass='" + adminPass + '\''
-        + ", jmxPort='" + jmxPort + '\'' + ", auth='" + auth + '\'' + '}';
+        + ", syncinterval=" + syncinterval + ", adminUser='" + adminUser + '\'' + ", adminPass='" + "******" + '\''
+        + ", jmxPort='" + jmxPort + '\'' + ", auth='" + "******" + '\'' + '}';
   }
 
   public static void main(String[] args) {
