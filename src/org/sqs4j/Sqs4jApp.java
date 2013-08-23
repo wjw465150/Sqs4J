@@ -514,9 +514,14 @@ public class Sqs4jApp implements Runnable {
           }
         }
 
-        final String serviceUrl = "service:jmx:rmi://0.0.0.0:" + _conf.jmxPort + "/jndi/rmi://127.0.0.1:"
-            + _conf.jmxPort + "/jmxrmi";
-        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(new JMXServiceURL(serviceUrl), env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
+        JMXServiceURL jmxServiceURL = null;
+        try {
+          jmxServiceURL = new JMXServiceURL("rmi", null, _conf.jmxPort, "/jndi/rmi://127.0.0.1:" + _conf.jmxPort + "/jmxrmi");
+        } catch (Throwable thex) {
+          _log.warn("Can not start JMXConnectorServer! Please correct configure Local host name!"+"\nException message is:"+thex.getMessage());
+          jmxServiceURL = new JMXServiceURL("rmi", "0.0.0.0", _conf.jmxPort, "/jndi/rmi://127.0.0.1:" + _conf.jmxPort + "/jmxrmi");
+        }
+        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(jmxServiceURL, env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
         _jmxCS.start();
         registerMBean(new org.sqs4j.jmx.Sqs4J(this), "org.sqs4j:type=Sqs4J");
       }
