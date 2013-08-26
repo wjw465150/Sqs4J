@@ -282,7 +282,7 @@ public class Sqs4jApp implements Runnable {
       OperationStatus status = _db.put(null, key, value);
       if (status == OperationStatus.SUCCESS) {
         _db.sync(); //实时刷新到磁盘
-        _log.info(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
+        _log.warn(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
 
         return httpsqs_input_num;
       } else {
@@ -310,6 +310,7 @@ public class Sqs4jApp implements Runnable {
     _db.delete(null, key);
 
     _db.sync(); //实时刷新到磁盘
+    _log.warn(String.format("队列被重置:(%s:maxqueue)", httpsqs_input_name));
 
     return true;
   }
