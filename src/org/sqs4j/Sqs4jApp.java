@@ -267,7 +267,7 @@ public class Sqs4jApp implements Runnable {
       _db.put(key.getBytes(DB_CHARSET), String.valueOf(httpsqs_input_num).getBytes(DB_CHARSET));
 
       this.flush(); //实时刷新到磁盘
-      _log.info(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
+      _log.warn(String.format("队列配置被修改:(%s:maxqueue)=%d", httpsqs_input_name, httpsqs_input_num));
       return httpsqs_input_num;
     } else {
       return 0L;
@@ -286,6 +286,7 @@ public class Sqs4jApp implements Runnable {
     _db.put((httpsqs_input_name + KEY_MAXQUEUE).getBytes(DB_CHARSET), String.valueOf(DEFAULT_MAXQUEUE).getBytes(DB_CHARSET));
 
     this.flush(); //实时刷新到磁盘
+    _log.warn(String.format("队列被重置:(%s:maxqueue)", httpsqs_input_name));
 
     return true;
   }
