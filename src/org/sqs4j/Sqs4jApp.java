@@ -48,7 +48,7 @@ import org.tanukisoftware.wrapper.WrapperManager;
  * 基于HTTP协议的轻量级开源简单队列服务. User: wstone Date: 2010-7-30 Time: 11:44:52
  */
 public class Sqs4jApp implements Runnable {
-  static final String VERSION = "1.3.8"; //当前版本
+  public static final String VERSION = "1.3.8"; //当前版本
   static final String DB_CHARSET = "UTF-8"; //数据库字符集
   static final long DEFAULT_MAXQUEUE = 1000000000; //缺省队列最大数是10亿条
   static final String KEY_PUTPOS = ":putpos";
@@ -68,7 +68,7 @@ public class Sqs4jApp implements Runnable {
   public DB _db; //数据库
 
   //同步磁盘的Scheduled
-  ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor();
+  public ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor();
 
   private Channel _channel; //Socket通道
 
@@ -216,7 +216,7 @@ public class Sqs4jApp implements Runnable {
 
   /* 读取队列写入点的值 */
 
-  long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
+  public long httpsqs_read_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
     final String key = httpsqs_input_name + KEY_PUTPOS;
     final byte[] value = _db.get(key.getBytes(DB_CHARSET));
     if (null == value) {
@@ -228,7 +228,7 @@ public class Sqs4jApp implements Runnable {
 
   /* 读取队列读取点的值 */
 
-  long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
+  public long httpsqs_read_getpos(String httpsqs_input_name) throws UnsupportedEncodingException {
     final String key = httpsqs_input_name + KEY_GETPOS;
     final byte[] value = _db.get(key.getBytes(DB_CHARSET));
     if (null == value) {
@@ -240,7 +240,7 @@ public class Sqs4jApp implements Runnable {
 
   /* 读取用于设置的最大队列数 */
 
-  long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
+  public long httpsqs_read_maxqueue(String httpsqs_input_name) throws UnsupportedEncodingException {
     final String key = httpsqs_input_name + KEY_MAXQUEUE;
     final byte[] value = _db.get(key.getBytes(DB_CHARSET));
     if (null == value) {
