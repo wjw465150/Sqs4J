@@ -13,9 +13,11 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -37,6 +39,7 @@ import org.apache.log4j.xml.DOMConfigurator;
 import org.fusesource.leveldbjni.JniDBFactory;
 import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.DB;
+import org.iq80.leveldb.DBIterator;
 import org.iq80.leveldb.Options;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
@@ -66,6 +69,7 @@ public class Sqs4jApp implements Runnable {
 
   static Lock _lock = new ReentrantLock(); //HTTP请求并发锁
   public DB _db; //数据库
+  public DB _meta; //META数据库,保存队列名
 
   //同步磁盘的Scheduled
   public ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor();
@@ -83,6 +87,10 @@ public class Sqs4jApp implements Runnable {
       file = new File(System.getProperty("user.dir", ".") + "/db/");
       if (!file.exists() && !file.mkdirs()) {
         throw new IOException("Can not create:" + System.getProperty("user.dir", ".") + "/db/");
+      }
+      file = new File(System.getProperty("user.dir", ".") + "/db/META");
+      if (!file.exists() && !file.mkdirs()) {
+        throw new IOException("Can not create:" + System.getProperty("user.dir", ".") + "/db/META");
       }
 
       final String logPath = System.getProperty("user.dir", ".") + "/conf/log4j.xml";
@@ -344,6 +352,9 @@ public class Sqs4jApp implements Runnable {
     final long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
     long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
     final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
+    if (queue_put_value == 0 && queue_get_value == 0) { //队列刚创建
+      addQueueName(httpsqs_input_name);
+    }
 
     final String key = httpsqs_input_name + KEY_PUTPOS;
     /* 队列写入位置点加1 */
@@ -416,6 +427,23 @@ public class Sqs4jApp implements Runnable {
     return queue_get_value;
   }
 
+  //把刚创建的队列名存进磁盘!
+  private void addQueueName(String name) {
+    _meta.put(name.getBytes(), name.getBytes());
+  }
+
+  //获取全部队列名
+  public List<String> getQueueNames() {
+    List<String> llst = new ArrayList<String>();
+    DBIterator dbIterator = _meta.iterator();
+    for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
+      byte[] bbQueuename = dbIterator.peekNext().getKey();
+      llst.add(new String(bbQueuename));
+    }
+
+    return llst;
+  }
+
   public boolean doStart() {
     try {
       try {
@@ -433,10 +461,6 @@ public class Sqs4jApp implements Runnable {
       }
 
       if (null == _db) {
-        if (null == _conf.dbPath || 0 == _conf.dbPath.length()) {
-          _conf.dbPath = System.getProperty("user.dir", ".") + "/db";
-        }
-
         final org.iq80.leveldb.Logger logger = new org.iq80.leveldb.Logger() {
           public void log(String message) {
             _log.info(message);
@@ -450,10 +474,15 @@ public class Sqs4jApp implements Runnable {
          * 比如options.write_buffer_size = 100000000。这样一上来sst就是32M起。
          */
         options.writeBufferSize(256 * 1024 * 1024); //log大小设成256M，这样减少切换日志的开销和减少数据合并的频率。
-        options.blockSize(256 * 1024);  //256KB Block Size 
+        options.blockSize(256 * 1024); //256KB Block Size 
         options.cacheSize(100 * 1024 * 1024); // 100MB cache
         options.compressionType(CompressionType.SNAPPY);
+
         _db = JniDBFactory.factory.open(new File(_conf.dbPath), options);
+      }
+      if (null == _meta) {
+        final Options options = new Options().createIfMissing(true);
+        _meta = JniDBFactory.factory.open(new File(_conf.dbPath + "/META"), options);
       }
 
       _scheduleSync.scheduleWithFixedDelay(this, 1, _conf.syncinterval, TimeUnit.SECONDS);
@@ -508,12 +537,10 @@ public class Sqs4jApp implements Runnable {
         _log.info("Getting the platform's MBean Server");
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 
-        JMXServiceURL localUrl = new JMXServiceURL("service:jmx:rmi://" + localHostname + ":" + 
-            _conf.jmxPort + "/jndi/rmi://" + localHostname + ":" + 
-            _conf.jmxPort + "/jmxrmi");
-        JMXServiceURL hostUrl = new JMXServiceURL("service:jmx:rmi://" + "127.0.0.1" + ":" + 
-            _conf.jmxPort + "/jndi/rmi://" + "127.0.0.1" + ":" + 
-            _conf.jmxPort + "/jmxrmi");
+        JMXServiceURL localUrl = new JMXServiceURL("service:jmx:rmi://" + localHostname + ":" + _conf.jmxPort
+            + "/jndi/rmi://" + localHostname + ":" + _conf.jmxPort + "/jmxrmi");
+        JMXServiceURL hostUrl = new JMXServiceURL("service:jmx:rmi://" + "127.0.0.1" + ":" + _conf.jmxPort
+            + "/jndi/rmi://" + "127.0.0.1" + ":" + _conf.jmxPort + "/jmxrmi");
         _log.info("InetAddress.getLocalHost().getHostName() Connection URL: " + localUrl);
         _log.info("Used host Connection URL: " + hostUrl);
 
@@ -560,6 +587,17 @@ public class Sqs4jApp implements Runnable {
         _log.error(ex.getMessage(), ex);
       } finally {
         _db = null;
+      }
+    }
+    if (_meta != null) {
+      this.flush(); //实时刷新到磁盘
+
+      try {
+        _meta.close();
+      } catch (Throwable ex) {
+        _log.error(ex.getMessage(), ex);
+      } finally {
+        _meta = null;
       }
     }
 
