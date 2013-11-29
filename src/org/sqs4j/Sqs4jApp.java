@@ -3,11 +3,12 @@ package org.sqs4j;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -23,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.management.MBeanServer;
 import javax.management.remote.JMXAuthenticator;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
@@ -501,28 +503,22 @@ public class Sqs4jApp implements Runnable {
           }
         });
 
-        synchronized (LocateRegistry.class) {
-          try {
-            _rmiRegistry = LocateRegistry.getRegistry(_conf.jmxPort);
-            _rmiRegistry.list();
-            _rmiCreated = false;
-            _log.info("Detect RMI registry:" + _rmiRegistry.toString());
-          } catch (RemoteException ex) {
-            _rmiRegistry = LocateRegistry.createRegistry(_conf.jmxPort);
-            _rmiRegistry.list();
-            _rmiCreated = true;
-            _log.info("Could not detect local RMI registry - creating new one:" + _rmiRegistry.toString());
-          }
-        }
+        final String localHostname = InetAddress.getLocalHost().getHostName();
+        LocateRegistry.createRegistry(_conf.jmxPort);
+        _log.info("Getting the platform's MBean Server");
+        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 
-        JMXServiceURL jmxServiceURL = null;
-        try {
-          jmxServiceURL = new JMXServiceURL("rmi", null, _conf.jmxPort, "/jndi/rmi://127.0.0.1:" + _conf.jmxPort + "/jmxrmi");
-        } catch (Throwable thex) {
-          _log.warn("Can not start JMXConnectorServer! Please correct configure Local host name!"+"\nException message is:"+thex.getMessage());
-          jmxServiceURL = new JMXServiceURL("rmi", "0.0.0.0", _conf.jmxPort, "/jndi/rmi://127.0.0.1:" + _conf.jmxPort + "/jmxrmi");
-        }
-        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(jmxServiceURL, env, java.lang.management.ManagementFactory.getPlatformMBeanServer());
+        JMXServiceURL localUrl = new JMXServiceURL("service:jmx:rmi://" + localHostname + ":" + 
+            _conf.jmxPort + "/jndi/rmi://" + localHostname + ":" + 
+            _conf.jmxPort + "/jmxrmi");
+        JMXServiceURL hostUrl = new JMXServiceURL("service:jmx:rmi://" + "127.0.0.1" + ":" + 
+            _conf.jmxPort + "/jndi/rmi://" + "127.0.0.1" + ":" + 
+            _conf.jmxPort + "/jmxrmi");
+        _log.info("InetAddress.getLocalHost().getHostName() Connection URL: " + localUrl);
+        _log.info("Used host Connection URL: " + hostUrl);
+
+        _log.info("Creating RMI connector server");
+        _jmxCS = JMXConnectorServerFactory.newJMXConnectorServer(hostUrl, env, mbs);
         _jmxCS.start();
         registerMBean(new org.sqs4j.jmx.Sqs4J(this), "org.sqs4j:type=Sqs4J");
       }
