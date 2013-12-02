@@ -52,7 +52,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
         password = userPass.substring(pos + 1, userPass.length());
       }
     } else {
-      response.setHeader("WWW-Authenticate", "Basic realm=\"Sqs4J\"");
+      response.headers().set("WWW-Authenticate", "Basic realm=\"Sqs4J\"");
       response.setStatus(HttpResponseStatus.UNAUTHORIZED);
       _buf.append("HTTPSQS_ERROR:需要用户名/口令!");
       return false;
@@ -61,7 +61,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     if (_app._conf.adminUser.equals(username) && _app._conf.adminPass.equals(password)) {
       return true;
     } else {
-      response.setHeader("WWW-Authenticate", "Basic realm=\"Sqs4J\"");
+      response.headers().set("WWW-Authenticate", "Basic realm=\"Sqs4J\"");
       response.setStatus(HttpResponseStatus.UNAUTHORIZED);
       _buf.append("HTTPSQS_ERROR:用户户名/口令 错误!");
       return false;
@@ -145,9 +145,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
 
     //返回给用户的Header头信息
     final HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-    response.setHeader("Content-Type", "text/plain;charset=" + charset);
-    response.setHeader("Connection", "keep-alive");
-    response.setHeader("Cache-Control", "no-cache");
+    response.headers().set("Content-Type", "text/plain;charset=" + charset);
+    response.headers().set("Connection", "keep-alive");
+    response.headers().set("Cache-Control", "no-cache");
 
     Sqs4jApp._lock.lock();
     try {
@@ -165,7 +165,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
                 final String key = httpsqs_input_name + ":" + now_putpos;
                 final String value = URLDecoder.decode(_request.getContent().toString(_charsetObj), charset);
                 _app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
-                response.setHeader("Pos", now_putpos);
+                response.headers().set("Pos", now_putpos);
                 _buf.append("HTTPSQS_PUT_OK");
               } else {
                 _buf.append("HTTPSQS_PUT_END");
@@ -176,7 +176,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
                 final String key = httpsqs_input_name + ":" + now_putpos;
                 final String value = httpsqs_input_data;
                 _app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
-                response.setHeader("Pos", now_putpos);
+                response.headers().set("Pos", now_putpos);
                 _buf.append("HTTPSQS_PUT_OK");
               } else {
                 _buf.append("HTTPSQS_PUT_END");
@@ -196,11 +196,11 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
               final String key = httpsqs_input_name + ":" + now_getpos;
               final byte[] value = _app._db.get(key.getBytes(Sqs4jApp.DB_CHARSET));
               if (null != value) {
-                response.setHeader("Pos", now_getpos);
+                response.headers().set("Pos", now_getpos);
                 _buf.append(new String(value, Sqs4jApp.DB_CHARSET));
               } else {  //@wjw_note: 发生这种状况的可能性极小,那就是设置了"putpos"后,程序突然死掉,没来得及写当前"putpos"指示的位置的数据!
                 //_buf.append("HTTPSQS_GET_END");
-                response.setHeader("Pos", now_getpos);
+                response.headers().set("Pos", now_getpos);
                 _buf.append("");
               }
             }
@@ -307,7 +307,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
     }
 
     response.setContent(ChannelBuffers.copiedBuffer(_buf.toString(), _charsetObj));
-    response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, response.getContent().readableBytes());
+    response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.getContent().readableBytes());
     // Write the response.
     ChannelFuture future = e.getChannel().write(response);
 
