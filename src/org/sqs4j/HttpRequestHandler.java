@@ -198,8 +198,10 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
               if (null != value) {
                 response.setHeader("Pos", now_getpos);
                 _buf.append(new String(value, Sqs4jApp.DB_CHARSET));
-              } else {
-                _buf.append("HTTPSQS_GET_END");
+              } else {  //@wjw_note: 发生这种状况的可能性极小,那就是设置了"putpos"后,程序突然死掉,没来得及写当前"putpos"指示的位置的数据!
+                //_buf.append("HTTPSQS_GET_END");
+                response.setHeader("Pos", now_getpos);
+                _buf.append("");
               }
             }
           }
