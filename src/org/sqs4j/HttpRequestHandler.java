@@ -40,7 +40,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
   private boolean checkUser(HttpResponse response) throws IOException {
     String username = "";
     String password = "";
-    String userPass = _request.getHeader("Authorization");
+    String userPass = _request.headers().get("Authorization");
 
     if (null != userPass) {
       userPass = userPass.substring(6, userPass.length());
@@ -109,8 +109,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
 
     String charset = (null != requestParameters.get("charset")) ? requestParameters.get("charset").get(0) : null; //先从query里查找charset
     if (null == charset) {
-      if (null != _request.getHeader("Content-Type")) {
-        charset = _app.getCharsetFromContentType(_request.getHeader("Content-Type"));
+      if (null != _request.headers().get("Content-Type")) {
+        charset = _app.getCharsetFromContentType(_request.headers().get("Content-Type"));
         if (null == charset) {
           charset = _app._conf.defaultCharset;
         } else if (!charset.equalsIgnoreCase(_app._conf.defaultCharset)) { //说明查询参数里指定了字符集,并且与缺省字符集不一致

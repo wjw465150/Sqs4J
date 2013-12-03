@@ -51,7 +51,7 @@ import org.tanukisoftware.wrapper.WrapperManager;
  * 基于HTTP协议的轻量级开源简单队列服务. User: wstone Date: 2010-7-30 Time: 11:44:52
  */
 public class Sqs4jApp implements Runnable {
-  public static final String VERSION = "1.3.8"; //当前版本
+  public static final String VERSION = "3.8.0"; //当前版本
   static final String DB_CHARSET = "UTF-8"; //数据库字符集
   static final long DEFAULT_MAXQUEUE = 1000000000; //缺省队列最大数是10亿条
   static final String KEY_PUTPOS = ":putpos";

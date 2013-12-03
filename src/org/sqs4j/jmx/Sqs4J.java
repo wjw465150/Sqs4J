@@ -12,6 +12,11 @@ public class Sqs4J implements Sqs4JMBean {
   }
 
   @Override
+  public String version() {
+    return _app.VERSION;
+  }
+
+  @Override
   public boolean flush() {
     _app.flush();
     return true;
