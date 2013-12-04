@@ -1,5 +1,7 @@
 package org.sqs4j;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -24,8 +26,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		_app = app;
 	}
 
-	private boolean checkUser(FullHttpRequest request, FullHttpResponse response, StringBuilder respBuf,
-	    Charset _charsetObj) throws IOException {
+	private boolean checkUser(FullHttpRequest request, FullHttpResponse response, Charset charsetObj) throws IOException {
 		String username = "";
 		String password = "";
 		String userPass = request.headers().get(HttpHeaders.Names.AUTHORIZATION);
@@ -33,7 +34,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		if (null != userPass) {
 			userPass = userPass.substring(6, userPass.length());
 
-			userPass = _app.getBASE64DecodeOfStr(userPass, _charsetObj.name());
+			userPass = _app.getBASE64DecodeOfStr(userPass, charsetObj.name());
 			final int pos = userPass.indexOf(':');
 			if (pos > 0) {
 				username = userPass.substring(0, pos);
@@ -42,7 +43,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		} else {
 			response.headers().set(HttpHeaders.Names.WWW_AUTHENTICATE, "Basic realm=\"Sqs4J\"");
 			response.setStatus(HttpResponseStatus.UNAUTHORIZED);
-			respBuf.append("HTTPSQS_ERROR:需要用户名/口令!");
+			response.content().writeBytes("HTTPSQS_ERROR:需要用户名/口令!".getBytes(charsetObj));
 			return false;
 		}
 
@@ -51,7 +52,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		} else {
 			response.headers().set(HttpHeaders.Names.WWW_AUTHENTICATE, "Basic realm=\"Sqs4J\"");
 			response.setStatus(HttpResponseStatus.UNAUTHORIZED);
-			respBuf.append("HTTPSQS_ERROR:用户户名/口令 错误!");
+			response.content().writeBytes("HTTPSQS_ERROR:用户户名/口令 错误!".getBytes(charsetObj));
 			return false;
 		}
 	}
@@ -102,8 +103,6 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 
 	private void writeResponse(ChannelHandlerContext ctx, FullHttpRequest request, Map<String, List<String>> parameters,
 	    Charset charsetObj) {
-		StringBuilder respBuf = new StringBuilder(128); //Buffer that stores the response content
-
 		//接收GET表单参数
 		final String httpsqs_input_auth = (null != parameters.get("auth")) ? parameters.get("auth").get(0) : null; // get,put,view的验证密码 
 		final String httpsqs_input_name = (null != parameters.get("name")) ? parameters.get("name").get(0) : null; // 队列名称 
@@ -121,19 +120,22 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		}
 
 		//返回给用户的Header头信息
-		FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+		FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
+		    HttpResponseStatus.OK,
+		    Unpooled.buffer(64));
 		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain;charset=" + charsetObj.name());
 		response.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 		response.headers().set(HttpHeaders.Names.CACHE_CONTROL, HttpHeaders.Values.NO_CACHE);
 
 		Sqs4jApp._lock.lock();
+		ByteBuf respBuf = response.content(); //Buffer that stores the response content
 		try {
 			/* 参数是否存在判断 */
 			if (null != httpsqs_input_name && null != httpsqs_input_opt && httpsqs_input_name.length() <= 256) {
 				/* 入队列 */
 				if (httpsqs_input_opt.equals("put")) {
 					if (null != _app._conf.auth && !_app._conf.auth.equals(httpsqs_input_auth)) {
-						respBuf.append("HTTPSQS_AUTH_FAILED");
+						respBuf.writeBytes("HTTPSQS_AUTH_FAILED".getBytes(charsetObj));
 					} else {
 						/* 优先接收POST正文信息 */
 						if (request.getMethod().name().equalsIgnoreCase("POST")) {
@@ -143,9 +145,9 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 								final String value = URLDecoder.decode(request.content().toString(charsetObj), charsetObj.name());
 								_app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
 								response.headers().set("Pos", now_putpos);
-								respBuf.append("HTTPSQS_PUT_OK");
+								respBuf.writeBytes("HTTPSQS_PUT_OK".getBytes(charsetObj));
 							} else {
-								respBuf.append("HTTPSQS_PUT_END");
+								respBuf.writeBytes("HTTPSQS_PUT_END".getBytes(charsetObj));
 							}
 						} else if (null != httpsqs_input_data) { //如果POST正文无内容，则取URL中data参数的值
 							final long now_putpos = _app.httpsqs_now_putpos(httpsqs_input_name);
@@ -154,44 +156,45 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 								final String value = httpsqs_input_data;
 								_app._db.put(key.getBytes(Sqs4jApp.DB_CHARSET), value.getBytes(Sqs4jApp.DB_CHARSET));
 								response.headers().set("Pos", now_putpos);
-								respBuf.append("HTTPSQS_PUT_OK");
+								respBuf.writeBytes("HTTPSQS_PUT_OK".getBytes(charsetObj));
 							} else {
-								respBuf.append("HTTPSQS_PUT_END");
+								respBuf.writeBytes("HTTPSQS_PUT_END".getBytes(charsetObj));
 							}
 						} else {
-							respBuf.append("HTTPSQS_PUT_ERROR");
+							respBuf.writeBytes("HTTPSQS_PUT_ERROR".getBytes(charsetObj));
 						}
 					}
 				} else if (httpsqs_input_opt.equals("get")) { //出队列
 					if (null != _app._conf.auth && !_app._conf.auth.equals(httpsqs_input_auth)) {
-						respBuf.append("HTTPSQS_AUTH_FAILED");
+						respBuf.writeBytes("HTTPSQS_AUTH_FAILED".getBytes(charsetObj));
 					} else {
 						final long now_getpos = _app.httpsqs_now_getpos(httpsqs_input_name);
 						if (0 == now_getpos) {
-							respBuf.append("HTTPSQS_GET_END");
+							respBuf.writeBytes("HTTPSQS_GET_END".getBytes(charsetObj));
 						} else {
 							final String key = httpsqs_input_name + ":" + now_getpos;
 							final byte[] value = _app._db.get(key.getBytes(Sqs4jApp.DB_CHARSET));
 							if (null != value) {
 								response.headers().set("Pos", now_getpos);
-								respBuf.append(new String(value, Sqs4jApp.DB_CHARSET));
+								byte[] bytesValue = (new String(value, Sqs4jApp.DB_CHARSET)).getBytes(charsetObj);
+								respBuf.capacity(bytesValue.length + 16);
+								respBuf.writeBytes(bytesValue);
 							} else { //@wjw_note: 发生这种状况的可能性极小,那就是设置了"putpos"后,程序突然死掉,没来得及写当前"putpos"指示的位置的数据!
-								//_buf.append("HTTPSQS_GET_END");
 								response.headers().set("Pos", now_getpos);
-								respBuf.append("");
+								respBuf.writeBytes("<null>".getBytes(charsetObj));
 							}
 						}
 					}
 					/* 查看单条队列内容 */
 				} else if (httpsqs_input_opt.equals("view") && httpsqs_input_pos >= 1 && httpsqs_input_pos <= Sqs4jApp.DEFAULT_MAXQUEUE) {
 					if (null != _app._conf.auth && !_app._conf.auth.equals(httpsqs_input_auth)) {
-						respBuf.append("HTTPSQS_AUTH_FAILED");
+						respBuf.writeBytes("HTTPSQS_AUTH_FAILED".getBytes(charsetObj));
 					} else {
 						final String httpsqs_output_value = _app.httpsqs_view(httpsqs_input_name, httpsqs_input_pos);
 						if (httpsqs_output_value == null) {
-							respBuf.append("HTTPSQS_ERROR_NOFOUND");
+							respBuf.writeBytes("HTTPSQS_ERROR_NOFOUND".getBytes(charsetObj));
 						} else {
-							respBuf.append(httpsqs_output_value);
+							respBuf.writeBytes(httpsqs_output_value.getBytes(charsetObj));
 						}
 					}
 					/* 查看队列状态（普通浏览方式） */
@@ -209,14 +212,15 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 						ungetnum = Math.abs(maxqueue - getpos + putpos); /* 尚未出队列条数 */
 						put_times = "2nd lap";
 					}
-					respBuf.append(String.format("HTTP Simple Queue Service (Sqs4J)v%s\n", Sqs4jApp.VERSION));
-					respBuf.append("------------------------------\n");
-					respBuf.append(String.format("Queue Name: %s\n", httpsqs_input_name));
-					respBuf.append(String.format("Maximum number of queues: %d\n", maxqueue));
-					respBuf.append(String.format("Put position of queue (%s): %d\n", put_times, putpos));
-					respBuf.append(String.format("Get position of queue (%s): %d\n", get_times, getpos));
-					respBuf.append(String.format("Number of unread queue: %d\n", ungetnum));
-					respBuf.append("ScheduleSync running: " + !_app._scheduleSync.isShutdown());
+					respBuf.writeBytes(String.format("HTTP Simple Queue Service (Sqs4J)v%s\n", Sqs4jApp.VERSION)
+					    .getBytes(charsetObj));
+					respBuf.writeBytes("------------------------------\n".getBytes(charsetObj));
+					respBuf.writeBytes(String.format("Queue Name: %s\n", httpsqs_input_name).getBytes(charsetObj));
+					respBuf.writeBytes(String.format("Maximum number of queues: %d\n", maxqueue).getBytes(charsetObj));
+					respBuf.writeBytes(String.format("Put position of queue (%s): %d\n", put_times, putpos).getBytes(charsetObj));
+					respBuf.writeBytes(String.format("Get position of queue (%s): %d\n", get_times, getpos).getBytes(charsetObj));
+					respBuf.writeBytes(String.format("Number of unread queue: %d\n", ungetnum).getBytes(charsetObj));
+					respBuf.writeBytes(("ScheduleSync running: " + !_app._scheduleSync.isShutdown()).getBytes(charsetObj));
 					/* 查看队列状态（JSON方式，方便客服端程序处理） */
 				} else if (httpsqs_input_opt.equals("status_json")) {
 					String put_times = "1st lap";
@@ -233,7 +237,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 						put_times = "2nd lap";
 					}
 
-					respBuf.append(String.format("{\"name\": \"%s\",\"maxqueue\": %d,\"putpos\": %d,\"putlap\": \"%s\",\"getpos\": %d,\"getlap\": \"%s\",\"unread\": %d, \"sync\": \"%s\"}\n",
+					respBuf.writeBytes(String.format("{\"name\": \"%s\",\"maxqueue\": %d,\"putpos\": %d,\"putlap\": \"%s\",\"getpos\": %d,\"getlap\": \"%s\",\"unread\": %d, \"sync\": \"%s\"}\n",
 					    httpsqs_input_name,
 					    maxqueue,
 					    putpos,
@@ -241,46 +245,47 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 					    getpos,
 					    get_times,
 					    ungetnum,
-					    !_app._scheduleSync.isShutdown()));
+					    !_app._scheduleSync.isShutdown())
+					    .getBytes(charsetObj));
 					/* 重置队列 */
 				} else if (httpsqs_input_opt.equals("reset")) {
-					if (checkUser(request, response, respBuf, charsetObj)) {
+					if (checkUser(request, response, charsetObj)) {
 						final boolean reset = _app.httpsqs_reset(httpsqs_input_name);
 						if (reset) {
-							respBuf.append(String.format("%s", "HTTPSQS_RESET_OK"));
+							respBuf.writeBytes(String.format("%s", "HTTPSQS_RESET_OK").getBytes(charsetObj));
 						} else {
-							respBuf.append(String.format("%s", "HTTPSQS_RESET_ERROR"));
+							respBuf.writeBytes(String.format("%s", "HTTPSQS_RESET_ERROR").getBytes(charsetObj));
 						}
 					}
 					/* 设置最大的队列数量，最小值为10条，最大值为10亿条 */
 				} else if (httpsqs_input_opt.equals("maxqueue") && httpsqs_input_num >= 10 && httpsqs_input_num <= Sqs4jApp.DEFAULT_MAXQUEUE) {
-					if (checkUser(request, response, respBuf, charsetObj)) {
+					if (checkUser(request, response, charsetObj)) {
 						if (_app.httpsqs_maxqueue(httpsqs_input_name, httpsqs_input_num) != 0) {
-							respBuf.append(String.format("%s", "HTTPSQS_MAXQUEUE_OK")); //设置成功
+							respBuf.writeBytes(String.format("%s", "HTTPSQS_MAXQUEUE_OK").getBytes(charsetObj)); //设置成功
 						} else {
-							respBuf.append(String.format("%s", "HTTPSQS_MAXQUEUE_CANCEL")); //设置取消
+							respBuf.writeBytes(String.format("%s", "HTTPSQS_MAXQUEUE_CANCEL").getBytes(charsetObj)); //设置取消
 						}
 					}
 					/* 设置定时更新内存内容到磁盘的间隔时间，最小值为1秒，最大值为10亿秒 */
 				} else if (httpsqs_input_opt.equals("synctime") && httpsqs_input_num >= 1 && httpsqs_input_num <= Sqs4jApp.DEFAULT_MAXQUEUE) {
-					if (checkUser(request, response, respBuf, charsetObj)) {
+					if (checkUser(request, response, charsetObj)) {
 						if (_app.httpsqs_synctime((int) httpsqs_input_num) >= 1) {
-							respBuf.append(String.format("%s", "HTTPSQS_SYNCTIME_OK"));
+							respBuf.writeBytes(String.format("%s", "HTTPSQS_SYNCTIME_OK").getBytes(charsetObj));
 						} else {
-							respBuf.append(String.format("%s", "HTTPSQS_SYNCTIME_CANCEL"));
+							respBuf.writeBytes(String.format("%s", "HTTPSQS_SYNCTIME_CANCEL").getBytes(charsetObj));
 						}
 					}
 					/* 手动刷新内存内容到磁盘 */
 				} else if (httpsqs_input_opt.equals("flush")) {
-					if (checkUser(request, response, respBuf, charsetObj)) {
+					if (checkUser(request, response, charsetObj)) {
 						_app.flush();
-						respBuf.append(String.format("%s", "HTTPSQS_FLUSH_OK"));
+						respBuf.writeBytes(String.format("%s", "HTTPSQS_FLUSH_OK").getBytes(charsetObj));
 					}
 				} else { /* 命令错误 */
-					respBuf.append(String.format("%s", "HTTPSQS_ERROR:未知的命令!"));
+					respBuf.writeBytes(String.format("%s", "HTTPSQS_ERROR:未知的命令!").getBytes(charsetObj));
 				}
 			} else {
-				respBuf.append(String.format("%s", "HTTPSQS_ERROR:队列名错误!"));
+				respBuf.writeBytes(String.format("%s", "HTTPSQS_ERROR:队列名错误!").getBytes(charsetObj));
 			}
 		} catch (Throwable ex) {
 			_app._log.equals(ex);
@@ -288,8 +293,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 			Sqs4jApp._lock.unlock();
 		}
 
-		response.content().writeBytes(respBuf.toString().getBytes(charsetObj));
-		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, respBuf.readableBytes());
 
 		// Close the non-keep-alive connection after the write operation is done.
 		boolean keepAlive = HttpHeaders.isKeepAlive(request);
