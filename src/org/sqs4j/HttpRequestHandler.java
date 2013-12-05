@@ -127,8 +127,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		response.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 		response.headers().set(HttpHeaders.Names.CACHE_CONTROL, HttpHeaders.Values.NO_CACHE);
 
-		Sqs4jApp._lock.lock();
 		ByteBuf respBuf = response.content(); //Buffer that stores the response content
+		Sqs4jApp._lock.lock();
 		try {
 			/* 参数是否存在判断 */
 			if (null != httpsqs_input_name && null != httpsqs_input_opt && httpsqs_input_name.length() <= 256) {
