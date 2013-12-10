@@ -58,11 +58,6 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 	}
 
 	@Override
-	public void channelReadComplete(ChannelHandlerContext ctx) {
-		ctx.flush();
-	}
-
-	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		//cause.printStackTrace();
 		ctx.close();
@@ -298,9 +293,9 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<Object> {
 		// Close the non-keep-alive connection after the write operation is done.
 		boolean keepAlive = HttpHeaders.isKeepAlive(request);
 		if (!keepAlive) {
-			ctx.write(response).addListener(ChannelFutureListener.CLOSE);
+			ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
 		} else {
-			ctx.write(response);
+			ctx.writeAndFlush(response);
 		}
 	}
 }
