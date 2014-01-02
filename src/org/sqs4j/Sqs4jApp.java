@@ -363,12 +363,7 @@ public class Sqs4jApp implements Runnable {
 		final String key = httpsqs_input_name + KEY_PUTPOS;
 		/* 队列写入位置点加1 */
 		queue_put_value = queue_put_value + 1;
-		if (queue_put_value > maxqueue_num && 0 == queue_get_value) { /*
-																																	 * 如果队列写入ID+1
-																																	 * 之后追上队列读取ID
-																																	 * ，则说明队列已满
-																																	 * ，返回0，拒绝继续写入
-																																	 */
+		if (queue_put_value > maxqueue_num && queue_get_value <= 1) { // 如果队列写入ID大于最大队列数量，并且从未进行过出队列操作（=0）或进行过1次出队列操作（=1），返回0，拒绝继续写入
 			queue_put_value = 0;
 		} else if (queue_put_value == queue_get_value) { /*
 																											 * 如果队列写入ID+1之后追上队列读取ID，
