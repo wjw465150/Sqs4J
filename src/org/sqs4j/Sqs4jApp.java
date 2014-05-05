@@ -274,6 +274,10 @@ public class Sqs4jApp implements Runnable {
 		final long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
 		final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
 
+		if (queue_put_value == 0 && queue_get_value == 0) { //队列刚创建
+			addQueueName(httpsqs_input_name);
+		}
+		
 		/* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
 		if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value && queue_put_value >= queue_get_value) {
 			final String key = httpsqs_input_name + KEY_MAXQUEUE;
@@ -294,10 +298,15 @@ public class Sqs4jApp implements Runnable {
 	 * @return
 	 */
 	boolean httpsqs_reset(String httpsqs_input_name) throws UnsupportedEncodingException {
+		long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
+		final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
+		if (queue_put_value == 0 && queue_get_value == 0) { //队列刚创建
+			addQueueName(httpsqs_input_name);
+		}
+		
 		_db.put((httpsqs_input_name + KEY_PUTPOS).getBytes(DB_CHARSET), "0".getBytes(DB_CHARSET));
 		_db.put((httpsqs_input_name + KEY_GETPOS).getBytes(DB_CHARSET), "0".getBytes(DB_CHARSET));
-		_db.put((httpsqs_input_name + KEY_MAXQUEUE).getBytes(DB_CHARSET),
-		    String.valueOf(DEFAULT_MAXQUEUE).getBytes(DB_CHARSET));
+		_db.put((httpsqs_input_name + KEY_MAXQUEUE).getBytes(DB_CHARSET), String.valueOf(DEFAULT_MAXQUEUE).getBytes(DB_CHARSET));
 
 		this.flush(); //实时刷新到磁盘
 		_log.warn(String.format("队列被重置:(%s:maxqueue)", httpsqs_input_name));
