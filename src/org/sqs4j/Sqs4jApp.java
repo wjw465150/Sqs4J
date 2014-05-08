@@ -47,6 +47,7 @@ import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
 import org.iq80.leveldb.Options;
+import org.iq80.leveldb.WriteBatch;
 import org.tanukisoftware.wrapper.WrapperManager;
 
 /**
@@ -277,7 +278,7 @@ public class Sqs4jApp implements Runnable {
 		if (queue_put_value == 0 && queue_get_value == 0) { //队列刚创建
 			addQueueName(httpsqs_input_name);
 		}
-		
+
 		/* 设置的最大的队列数量必须大于等于”当前队列写入位置点“和”当前队列读取位置点“，并且”当前队列写入位置点“必须大于等于”当前队列读取位置点“ */
 		if (httpsqs_input_num >= queue_put_value && httpsqs_input_num >= queue_get_value && queue_put_value >= queue_get_value) {
 			final String key = httpsqs_input_name + KEY_MAXQUEUE;
@@ -303,7 +304,7 @@ public class Sqs4jApp implements Runnable {
 		if (queue_put_value == 0 && queue_get_value == 0) { //队列刚创建
 			addQueueName(httpsqs_input_name);
 		}
-		
+
 		_db.put((httpsqs_input_name + KEY_PUTPOS).getBytes(DB_CHARSET), "0".getBytes(DB_CHARSET));
 		_db.put((httpsqs_input_name + KEY_GETPOS).getBytes(DB_CHARSET), "0".getBytes(DB_CHARSET));
 		_db.put((httpsqs_input_name + KEY_MAXQUEUE).getBytes(DB_CHARSET), String.valueOf(DEFAULT_MAXQUEUE).getBytes(DB_CHARSET));
@@ -361,7 +362,7 @@ public class Sqs4jApp implements Runnable {
 	 * @param httpsqs_input_name
 	 * @return
 	 */
-	long httpsqs_now_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
+	private long httpsqs_now_putpos(String httpsqs_input_name) throws UnsupportedEncodingException {
 		final long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
 		long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
 		final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
@@ -386,6 +387,63 @@ public class Sqs4jApp implements Runnable {
 		} else { /* 队列写入位置点加1后的值，回写入数据库 */
 			final String value = String.valueOf(queue_put_value);
 			_db.put(key.getBytes(DB_CHARSET), value.getBytes(DB_CHARSET));
+		}
+
+		return queue_put_value;
+	}
+
+	/**
+	 * 获取本次“入队列”操作的队列写入点，返回值为0时队列已满拒绝继续写入
+	 * 
+	 * @param httpsqs_input_name
+	 * @return
+	 */
+	long httpsqsPut(String httpsqs_input_name, String data) throws UnsupportedEncodingException {
+		final long maxqueue_num = httpsqs_read_maxqueue(httpsqs_input_name);
+		long queue_put_value = httpsqs_read_putpos(httpsqs_input_name);
+		final long queue_get_value = httpsqs_read_getpos(httpsqs_input_name);
+		if (queue_put_value == 0 && queue_get_value == 0) { //队列刚创建
+			addQueueName(httpsqs_input_name);
+		}
+
+		/* 队列写入位置点加1 */
+		queue_put_value = queue_put_value + 1;
+		if (queue_put_value > maxqueue_num && queue_get_value <= 1) { // 如果队列写入ID大于最大队列数量，并且从未进行过出队列操作（=0）或进行过1次出队列操作（=1），返回0，拒绝继续写入
+			queue_put_value = 0;
+		} else if (queue_put_value == queue_get_value) { /*
+																											 * 如果队列写入ID+1之后追上队列读取ID，
+																											 * 则说明队列已满 ，返回0，拒绝继续写入
+																											 */
+			queue_put_value = 0;
+		} else if (queue_put_value > maxqueue_num) { /*
+																									 * 如果队列写入ID大于最大队列数量，则重置队列写入位置点的值为1
+																									 */
+			queue_put_value = 1;
+			WriteBatch batch = _db.createWriteBatch();
+			try {
+				batch.put((httpsqs_input_name + KEY_PUTPOS).getBytes(DB_CHARSET), String.valueOf(queue_put_value).getBytes(DB_CHARSET));
+				batch.put((httpsqs_input_name + ":" + queue_put_value).getBytes(DB_CHARSET), data.getBytes(DB_CHARSET));
+				_db.write(batch);
+			} finally {
+				try {
+					batch.close();
+				} catch (IOException ex) {
+					_log.error(ex.getMessage(), ex);
+				}
+			}
+		} else { /* 队列写入位置点加1后的值，回写入数据库 */
+			WriteBatch batch = _db.createWriteBatch();
+			try {
+				batch.put((httpsqs_input_name + KEY_PUTPOS).getBytes(DB_CHARSET), String.valueOf(queue_put_value).getBytes(DB_CHARSET));
+				batch.put((httpsqs_input_name + ":" + queue_put_value).getBytes(DB_CHARSET), data.getBytes(DB_CHARSET));
+				_db.write(batch);
+			} finally {
+				try {
+					batch.close();
+				} catch (IOException ex) {
+					_log.error(ex.getMessage(), ex);
+				}
+			}
 		}
 
 		return queue_put_value;
@@ -519,10 +577,7 @@ public class Sqs4jApp implements Runnable {
 
 				_channel = server.bind(addr).sync().channel();
 
-				_log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s",
-				    _conf.bindAddress,
-				    _conf.bindPort,
-				    _conf.toString()));
+				_log.info(String.format("Sqs4J Server is listening on Address:%s Port:%d\n%s", _conf.bindAddress, _conf.bindPort, _conf.toString()));
 			}
 
 			if (_jmxCS == null) {
@@ -675,8 +730,7 @@ public class Sqs4jApp implements Runnable {
 			// The version of the above code using reflection follows.
 			Method methodGetPlatformMBeanServer = classManagementFactory.getMethod("getPlatformMBeanServer", (Class[]) null);
 			Constructor constructorObjectName = classObjectName.getConstructor(new Class[] { String.class });
-			Method methodRegisterMBean = classMBeanServer.getMethod("registerMBean",
-			    new Class[] { Object.class, classObjectName });
+			Method methodRegisterMBean = classMBeanServer.getMethod("registerMBean", new Class[] { Object.class, classObjectName });
 			Object mbs = methodGetPlatformMBeanServer.invoke(null, (Object[]) null);
 			Object oName = constructorObjectName.newInstance(new Object[] { name });
 			methodRegisterMBean.invoke(mbs, new Object[] { mbean, oName });
